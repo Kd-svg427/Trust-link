@@ -1,0 +1,495 @@
+-- ============================================
+-- TrustLink Database Schema
+-- Run this FIRST in your Supabase SQL Editor
+-- ============================================
+
+-- Enable extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================
+-- TABLES
+-- ============================================
+
+-- Profiles (linked to auth.users via trigger)
+CREATE TABLE public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  phone TEXT DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'buyer' CHECK (role IN ('buyer', 'vendor', 'admin')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Vendors
+CREATE TABLE public.vendors (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE UNIQUE,
+  store_name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  logo_url TEXT,
+  momo_number TEXT DEFAULT '',
+  whatsapp_number TEXT DEFAULT '',
+  approval_status TEXT NOT NULL DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Categories
+CREATE TABLE public.categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE,
+  slug TEXT NOT NULL UNIQUE,
+  icon TEXT DEFAULT 'package',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Products
+CREATE TABLE public.products (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  vendor_id UUID NOT NULL REFERENCES public.vendors(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE RESTRICT,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+  compare_at_price DECIMAL(10,2) DEFAULT NULL,
+  stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+  images TEXT[] DEFAULT '{}',
+  approval_status TEXT NOT NULL DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+  featured BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Orders
+CREATE TABLE public.orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  buyer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  vendor_id UUID NOT NULL REFERENCES public.vendors(id) ON DELETE RESTRICT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled')),
+  delivery_address TEXT NOT NULL,
+  city TEXT NOT NULL,
+  payment_method TEXT NOT NULL CHECK (payment_method IN ('mtn_momo', 'vodafone_cash', 'airteltigo_money', 'bank_card')),
+  payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
+  total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount > 0),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Order Items
+CREATE TABLE public.order_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price > 0),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Reviews
+CREATE TABLE public.reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  buyer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(product_id, buyer_id)
+);
+
+-- Newsletter Subscribers
+CREATE TABLE public.newsletter_subscribers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- ============================================
+-- INDEXES
+-- ============================================
+
+CREATE INDEX idx_products_vendor ON public.products(vendor_id);
+CREATE INDEX idx_products_category ON public.products(category_id);
+CREATE INDEX idx_products_approval ON public.products(approval_status);
+CREATE INDEX idx_products_featured ON public.products(featured) WHERE featured = true;
+CREATE INDEX idx_orders_buyer ON public.orders(buyer_id);
+CREATE INDEX idx_orders_vendor ON public.orders(vendor_id);
+CREATE INDEX idx_orders_status ON public.orders(status);
+CREATE INDEX idx_order_items_order ON public.order_items(order_id);
+CREATE INDEX idx_reviews_product ON public.reviews(product_id);
+CREATE INDEX idx_vendors_approval ON public.vendors(approval_status);
+CREATE INDEX idx_vendors_profile ON public.vendors(profile_id);
+
+
+-- ============================================
+-- FUNCTIONS & TRIGGERS
+-- ============================================
+
+-- Auto-create profile when a new user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, name, email, phone, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'name', ''),
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'buyer')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if it exists, then create
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
+-- Auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_profiles_updated BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+CREATE TRIGGER tr_vendors_updated BEFORE UPDATE ON public.vendors
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+CREATE TRIGGER tr_products_updated BEFORE UPDATE ON public.products
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+CREATE TRIGGER tr_orders_updated BEFORE UPDATE ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+CREATE TRIGGER tr_reviews_updated BEFORE UPDATE ON public.reviews
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+
+-- ============================================
+-- ROW LEVEL SECURITY — Enable on all tables
+-- ============================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+
+
+-- ============================================
+-- RLS POLICIES — profiles
+-- ============================================
+
+-- Authenticated users can view all profiles (needed for reviews, vendor info display)
+CREATE POLICY "profiles_select_authenticated"
+  ON public.profiles FOR SELECT
+  TO authenticated
+  USING (true);
+
+-- Users can update their own profile
+CREATE POLICY "profiles_update_own"
+  ON public.profiles FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+-- Admins can update any profile (e.g. suspend users)
+CREATE POLICY "profiles_update_admin"
+  ON public.profiles FOR UPDATE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- RLS POLICIES — vendors
+-- ============================================
+
+-- Anyone (including anon) can view approved vendors
+CREATE POLICY "vendors_select_approved"
+  ON public.vendors FOR SELECT
+  USING (approval_status = 'approved');
+
+-- Vendors can view their own record regardless of approval status
+CREATE POLICY "vendors_select_own"
+  ON public.vendors FOR SELECT
+  TO authenticated
+  USING (profile_id = auth.uid());
+
+-- Admins can view all vendors
+CREATE POLICY "vendors_select_admin"
+  ON public.vendors FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Authenticated vendor-role users can create a vendor record for themselves
+CREATE POLICY "vendors_insert_own"
+  ON public.vendors FOR INSERT
+  TO authenticated
+  WITH CHECK (profile_id = auth.uid());
+
+-- Vendors can update their own record (store info, not approval_status)
+CREATE POLICY "vendors_update_own"
+  ON public.vendors FOR UPDATE
+  TO authenticated
+  USING (profile_id = auth.uid())
+  WITH CHECK (profile_id = auth.uid());
+
+-- Admins can update any vendor (approval, etc.)
+CREATE POLICY "vendors_update_admin"
+  ON public.vendors FOR UPDATE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- RLS POLICIES — categories
+-- ============================================
+
+-- Everyone can view categories (public)
+CREATE POLICY "categories_select_public"
+  ON public.categories FOR SELECT
+  USING (true);
+
+-- Only admins can insert/update/delete categories
+CREATE POLICY "categories_insert_admin"
+  ON public.categories FOR INSERT
+  TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+CREATE POLICY "categories_update_admin"
+  ON public.categories FOR UPDATE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+CREATE POLICY "categories_delete_admin"
+  ON public.categories FOR DELETE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- RLS POLICIES — products
+-- ============================================
+
+-- Anyone can view approved products (public catalog)
+CREATE POLICY "products_select_approved"
+  ON public.products FOR SELECT
+  USING (approval_status = 'approved');
+
+-- Vendors can view their own products (any status)
+CREATE POLICY "products_select_own_vendor"
+  ON public.products FOR SELECT
+  TO authenticated
+  USING (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+
+-- Admins can view all products
+CREATE POLICY "products_select_admin"
+  ON public.products FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Vendors can insert products for their own store
+CREATE POLICY "products_insert_vendor"
+  ON public.products FOR INSERT
+  TO authenticated
+  WITH CHECK (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+
+-- Vendors can update their own products
+CREATE POLICY "products_update_vendor"
+  ON public.products FOR UPDATE
+  TO authenticated
+  USING (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+
+-- Admins can update any product (approval, etc.)
+CREATE POLICY "products_update_admin"
+  ON public.products FOR UPDATE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Vendors can delete their own products
+CREATE POLICY "products_delete_vendor"
+  ON public.products FOR DELETE
+  TO authenticated
+  USING (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+
+-- Admins can delete any product
+CREATE POLICY "products_delete_admin"
+  ON public.products FOR DELETE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- RLS POLICIES — orders
+-- ============================================
+
+-- Buyers can view their own orders
+CREATE POLICY "orders_select_buyer"
+  ON public.orders FOR SELECT
+  TO authenticated
+  USING (buyer_id = auth.uid());
+
+-- Vendors can view orders placed at their store
+CREATE POLICY "orders_select_vendor"
+  ON public.orders FOR SELECT
+  TO authenticated
+  USING (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+
+-- Admins can view all orders
+CREATE POLICY "orders_select_admin"
+  ON public.orders FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Authenticated buyers can create orders (buyer_id must match)
+CREATE POLICY "orders_insert_buyer"
+  ON public.orders FOR INSERT
+  TO authenticated
+  WITH CHECK (buyer_id = auth.uid());
+
+-- Vendors can update order status for their own orders
+CREATE POLICY "orders_update_vendor"
+  ON public.orders FOR UPDATE
+  TO authenticated
+  USING (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+
+-- Admins can update any order
+CREATE POLICY "orders_update_admin"
+  ON public.orders FOR UPDATE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- RLS POLICIES — order_items
+-- ============================================
+
+-- Users can view order items for orders they can see (buyer or vendor)
+CREATE POLICY "order_items_select_buyer"
+  ON public.order_items FOR SELECT
+  TO authenticated
+  USING (order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid()));
+
+CREATE POLICY "order_items_select_vendor"
+  ON public.order_items FOR SELECT
+  TO authenticated
+  USING (order_id IN (
+    SELECT o.id FROM public.orders o
+    INNER JOIN public.vendors v ON o.vendor_id = v.id
+    WHERE v.profile_id = auth.uid()
+  ));
+
+CREATE POLICY "order_items_select_admin"
+  ON public.order_items FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Buyers can insert order items for their own orders
+CREATE POLICY "order_items_insert_buyer"
+  ON public.order_items FOR INSERT
+  TO authenticated
+  WITH CHECK (order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid()));
+
+
+-- ============================================
+-- RLS POLICIES — reviews
+-- ============================================
+
+-- Anyone can read reviews (public)
+CREATE POLICY "reviews_select_public"
+  ON public.reviews FOR SELECT
+  USING (true);
+
+-- Authenticated buyers can create reviews
+CREATE POLICY "reviews_insert_buyer"
+  ON public.reviews FOR INSERT
+  TO authenticated
+  WITH CHECK (buyer_id = auth.uid());
+
+-- Users can update their own reviews
+CREATE POLICY "reviews_update_own"
+  ON public.reviews FOR UPDATE
+  TO authenticated
+  USING (buyer_id = auth.uid());
+
+-- Users can delete their own reviews
+CREATE POLICY "reviews_delete_own"
+  ON public.reviews FOR DELETE
+  TO authenticated
+  USING (buyer_id = auth.uid());
+
+-- Admins can delete any review
+CREATE POLICY "reviews_delete_admin"
+  ON public.reviews FOR DELETE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- RLS POLICIES — newsletter_subscribers
+-- ============================================
+
+-- Anyone can subscribe (insert)
+CREATE POLICY "newsletter_insert_public"
+  ON public.newsletter_subscribers FOR INSERT
+  WITH CHECK (true);
+
+-- Only admins can view subscribers
+CREATE POLICY "newsletter_select_admin"
+  ON public.newsletter_subscribers FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+
+-- ============================================
+-- STORAGE BUCKETS
+-- ============================================
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES
+  ('product-images', 'product-images', true),
+  ('vendor-logos', 'vendor-logos', true),
+  ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage policies: anyone can view, authenticated can upload
+CREATE POLICY "storage_select_product_images" ON storage.objects
+  FOR SELECT USING (bucket_id = 'product-images');
+
+CREATE POLICY "storage_insert_product_images" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'product-images');
+
+CREATE POLICY "storage_update_product_images" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'product-images');
+
+CREATE POLICY "storage_delete_product_images" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'product-images');
+
+CREATE POLICY "storage_select_vendor_logos" ON storage.objects
+  FOR SELECT USING (bucket_id = 'vendor-logos');
+
+CREATE POLICY "storage_insert_vendor_logos" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'vendor-logos');
+
+CREATE POLICY "storage_select_avatars" ON storage.objects
+  FOR SELECT USING (bucket_id = 'avatars');
+
+CREATE POLICY "storage_insert_avatars" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars');

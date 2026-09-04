@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+
+  <!-- SEO Meta Tags -->
+  <title>TrustLink — Ghana's Trusted E-Commerce Marketplace</title>
+  <meta name="description" content="Shop with confidence on TrustLink — Ghana's most trusted e-commerce marketplace. Discover quality products from verified vendors. Secure payments via MTN MoMo, Vodafone Cash, and more. Fast nationwide delivery.">
+  <meta name="keywords" content="TrustLink, Ghana, e-commerce, online shopping, MTN MoMo, Vodafone Cash, Accra, Kumasi, African marketplace">
+  <meta name="author" content="TrustLink">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="TrustLink — Shop with Confidence">
+  <meta property="og:description" content="Ghana's most trusted e-commerce marketplace. Verified vendors, secure payments, fast delivery.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="icons/icon-512.png">
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#1B5E20">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TrustLink">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-192.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Tailwind CSS v4 (Browser Build) -->
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-primary: #1B5E20;
+      --color-primary-light: #4CAF50;
+      --color-gold: #FFB300;
+      --color-dark: #0a0a0a;
+      --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+  </style>
+
+  <!-- Supabase JS Client (v2 CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+  <!-- App Shell -->
+  <div id="app">
+    <!-- Header (rendered by JS) -->
+    <header id="app-header"></header>
+
+    <!-- Main Content (swapped by router) -->
+    <main id="app-main">
+      <!-- Loading state -->
+      <div class="page-loader" style="min-height:100vh">
+        <div style="text-align:center">
+          <div class="loader" style="margin:0 auto 1rem"></div>
+          <p style="color:var(--text-muted);font-size:0.9rem">Loading TrustLink...</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer (rendered by JS) -->
+    <div id="app-footer-container"></div>
+  </div>
+
+  <!-- Configuration (user fills in their Supabase keys) -->
+  <script src="config.js"></script>
+
+  <!-- Supabase Client + API Helpers -->
+  <script src="js/supabase.js"></script>
+
+  <!-- Components -->
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/modal.js"></script>
+  <script src="js/components/product-card.js"></script>
+  <script src="js/components/header.js"></script>
+  <script src="js/components/footer.js"></script>
+
+  <!-- Pages -->
+  <script src="js/pages/home.js"></script>
+  <script src="js/pages/products.js"></script>
+  <script src="js/pages/product-detail.js"></script>
+  <script src="js/pages/cart.js"></script>
+  <script src="js/pages/checkout.js"></script>
+  <script src="js/pages/order-success.js"></script>
+  <script src="js/pages/login.js"></script>
+  <script src="js/pages/buyer-dashboard.js"></script>
+  <script src="js/pages/vendor-dashboard.js"></script>
+  <script src="js/pages/admin-dashboard.js"></script>
+
+  <!-- Main App (Router + Init — must be last) -->
+  <script src="js/app.js"></script>
+</body>
+</html>
