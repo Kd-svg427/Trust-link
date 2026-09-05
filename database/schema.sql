@@ -493,3 +493,23 @@ CREATE POLICY "storage_select_avatars" ON storage.objects
 CREATE POLICY "storage_insert_avatars" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'avatars');
+
+-- ============================================
+-- GRANTS — ensure anon can read public catalog even when "Automatically expose new tables" is OFF
+-- ============================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT ON public.categories TO anon, authenticated;
+GRANT SELECT ON public.vendors TO anon, authenticated;
+GRANT SELECT ON public.products TO anon, authenticated;
+GRANT SELECT ON public.reviews TO anon, authenticated;
+GRANT SELECT, INSERT ON public.newsletter_subscribers TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.vendors TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.products TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.order_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.reviews TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO supabase_auth_admin, postgres;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO supabase_auth_admin, postgres;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO supabase_auth_admin, postgres;
