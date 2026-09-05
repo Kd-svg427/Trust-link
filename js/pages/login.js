@@ -14,25 +14,6 @@ async function renderLoginPage() {
           <p style="color:var(--text-secondary);margin-top:0.5rem">Ghana's trusted e-commerce marketplace</p>
         </div>
 
-        <!-- Quick Login Buttons -->
-        <div class="glass-card" style="padding:1.25rem;margin-bottom:1.5rem">
-          <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;text-align:center">Quick Demo Login</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">
-            <button class="btn btn-ghost btn-sm quick-login-btn" data-email="buyer@trustlink.demo" data-pass="TrustLink123!" style="flex-direction:column;padding:0.75rem;border:1px solid var(--border-color);border-radius:var(--radius-md)">
-              <i data-lucide="user" class="w-5 h-5" style="color:var(--info)"></i>
-              <span style="font-size:0.75rem;margin-top:0.25rem">Buyer</span>
-            </button>
-            <button class="btn btn-ghost btn-sm quick-login-btn" data-email="vendor@trustlink.demo" data-pass="TrustLink123!" style="flex-direction:column;padding:0.75rem;border:1px solid var(--border-color);border-radius:var(--radius-md)">
-              <i data-lucide="store" class="w-5 h-5" style="color:var(--primary-light)"></i>
-              <span style="font-size:0.75rem;margin-top:0.25rem">Vendor</span>
-            </button>
-            <button class="btn btn-ghost btn-sm quick-login-btn" data-email="admin@trustlink.demo" data-pass="TrustLink123!" style="flex-direction:column;padding:0.75rem;border:1px solid var(--border-color);border-radius:var(--radius-md)">
-              <i data-lucide="shield" class="w-5 h-5" style="color:var(--gold)"></i>
-              <span style="font-size:0.75rem;margin-top:0.25rem">Admin</span>
-            </button>
-          </div>
-        </div>
-
         <!-- Tab Toggle -->
         <div style="display:flex;background:var(--bg-tertiary);border-radius:var(--radius-md);padding:4px;margin-bottom:1.5rem">
           <button class="auth-tab active" id="tab-login" style="flex:1;padding:0.625rem;border:none;border-radius:var(--radius-sm);font-weight:600;font-size:0.9rem;cursor:pointer;transition:all var(--transition-fast);background:var(--primary);color:white">
@@ -136,23 +117,6 @@ async function initLoginPage() {
       });
       opt.classList.add('selected');
       opt.style.borderColor = 'var(--primary-light)';
-    });
-  });
-
-  // Quick login buttons
-  document.querySelectorAll('.quick-login-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const email = btn.dataset.email;
-      const pass = btn.dataset.pass;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>';
-      try {
-        await doLogin(email, pass);
-      } catch (err) {
-        Toast.error('Quick login failed: ' + err.message);
-        btn.disabled = false;
-        if (window.lucide) lucide.createIcons();
-      }
     });
   });
 
