@@ -24,7 +24,7 @@ function renderHeader() {
             ${cartCount > 0 ? `<span class="cart-count" id="cart-count">${cartCount}</span>` : '<span class="cart-count" id="cart-count" style="display:none">0</span>'}
           </a>
 
-          <div id="nav-auth-section">
+          <div id="nav-auth-section" style="display:flex;align-items:center;gap:0.25rem;flex-wrap:nowrap">
             <!-- Filled dynamically by updateHeaderAuth -->
           </div>
 
