@@ -75,6 +75,12 @@ const App = {
     } else if (path === '/admin') {
       html = await renderAdminDashboardPage();
       initFn = initAdminDashboardPage;
+    } else if (path === '/privacy') {
+      html = await renderPrivacyPage();
+      initFn = initPrivacyPage;
+    } else if (path === '/terms') {
+      html = await renderTermsPage();
+      initFn = initTermsPage;
     } else {
       // 404
       html = `

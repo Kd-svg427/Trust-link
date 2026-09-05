@@ -54,11 +54,11 @@ function renderFooter() {
       </div>
 
       <div class="footer-bottom">
-        <p>© ${new Date().getFullYear()} TrustLink. All rights reserved. Made with ❤️ in Ghana 🇬🇭</p>
+        <p>© ${new Date().getFullYear()} TrustLink. All rights reserved.</p>
         <div style="display:flex;gap:1.5rem;font-size:0.8rem">
-          <a href="#" style="color:var(--text-muted)">Privacy Policy</a>
-          <a href="#" style="color:var(--text-muted)">Terms of Service</a>
-          <a href="#" style="color:var(--text-muted)">Contact Us</a>
+          <a href="#/privacy" style="color:var(--text-muted)">Privacy Policy</a>
+          <a href="#/terms" style="color:var(--text-muted)">Terms of Service</a>
+          <a href="https://wa.me/233551234567" target="_blank" rel="noopener" style="color:var(--text-muted)">Contact via WhatsApp</a>
         </div>
       </div>
     </footer>
