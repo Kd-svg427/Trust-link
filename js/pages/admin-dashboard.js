@@ -27,6 +27,7 @@ async function renderAdminDashboardPage() {
             <button class="sidebar-nav-item" data-tab="products"><i data-lucide="package" class="w-4 h-4"></i> Products</button>
             <button class="sidebar-nav-item" data-tab="users"><i data-lucide="users" class="w-4 h-4"></i> Users</button>
             <button class="sidebar-nav-item" data-tab="orders"><i data-lucide="shopping-bag" class="w-4 h-4"></i> All Orders</button>
+            <button class="sidebar-nav-item" data-tab="announcements"><i data-lucide="megaphone" class="w-4 h-4"></i> Announcements</button>
           </nav>
         </aside>
         <main class="dashboard-content" id="admin-content">
@@ -61,6 +62,7 @@ async function loadAdminTab() {
       case 'products': await adminProducts(c); break;
       case 'users': await adminUsers(c); break;
       case 'orders': await adminOrders(c); break;
+      case 'announcements': await adminAnnouncements(c); break;
     }
     if (window.lucide) lucide.createIcons();
   } catch (err) {
@@ -157,7 +159,10 @@ async function adminProducts(c) {
   const pending = products.filter(p => p.approval_status === 'pending');
 
   c.innerHTML = `
-    <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Product Moderation</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+      <h2 style="font-size:1.5rem;font-weight:800">Product Moderation</h2>
+      <button class="btn btn-primary" id="admin-add-product-btn"><i data-lucide="plus" class="w-4 h-4"></i> Add Product</button>
+    </div>
     ${pending.length > 0 ? `
       <div class="glass-card" style="padding:1.5rem;margin-bottom:2rem;border-color:var(--warning)">
         <h3 style="font-weight:700;margin-bottom:1rem;color:var(--warning)">⏳ Pending Review (${pending.length})</h3>
@@ -192,6 +197,68 @@ async function adminProducts(c) {
       </tr>`).join('')}
     </tbody></table></div>
   `;
+  document.getElementById('admin-add-product-btn')?.addEventListener('click', () => showAdminProductModal());
+}
+
+async function showAdminProductModal() {
+  const [vendors, categories] = await Promise.all([Vendors.getAll('approved'), Categories.getAll()]);
+  if (vendors.length === 0) { Toast.warning('No approved vendors — approve a vendor first'); return; }
+  if (categories.length === 0) { Toast.warning('No categories — create one first'); return; }
+  Modal.show('Add Product (Admin)', `
+    <form id="admin-product-form">
+      <div class="form-group">
+        <label class="form-label">Vendor</label>
+        <select class="form-input form-select" id="apm-vendor" required>
+          ${vendors.map(v => `<option value="${v.id}">${sanitize(v.store_name)} — ${sanitize(v.profiles?.name||'')}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Product Title</label>
+        <input type="text" class="form-input" id="apm-title" placeholder="e.g. Wireless Earbuds" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-input form-select" id="apm-category" required>
+          <option value="">Select category</option>
+          ${categories.map(c => `<option value="${c.id}">${sanitize(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group"><label class="form-label">Price (₵)</label><input type="number" class="form-input" id="apm-price" step="0.01" min="0.01" required></div>
+        <div class="form-group"><label class="form-label">Stock</label><input type="number" class="form-input" id="apm-stock" min="0" value="10" required></div>
+      </div>
+      <div class="form-group"><label class="form-label">Compare at Price (₵)</label><input type="number" class="form-input" id="apm-compare" step="0.01" placeholder="Optional"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-input" id="apm-desc" rows="3" placeholder="Product description..."></textarea></div>
+      <div class="form-group"><label class="form-label">Image URL</label><input type="url" class="form-input" id="apm-image" placeholder="https://..."></div>
+      <div class="form-group"><label class="form-label">Or Upload Image</label><input type="file" class="form-input" id="apm-file" accept="image/*" style="padding:0.5rem"></div>
+      <div class="form-group"><label class="form-label">Featured</label><input type="checkbox" id="apm-featured"> <label for="apm-featured" style="font-size:0.9rem">Mark as featured</label></div>
+    </form>
+  `, {
+    maxWidth: '600px',
+    footerHtml: '<button class="btn btn-ghost" onclick="Modal.close()">Cancel</button><button class="btn btn-primary" id="apm-submit">Create Product</button>'
+  });
+  if (window.lucide) lucide.createIcons();
+  document.getElementById('apm-submit')?.addEventListener('click', async () => {
+    const vendorId = document.getElementById('apm-vendor').value;
+    const title = document.getElementById('apm-title').value.trim();
+    const categoryId = document.getElementById('apm-category').value;
+    const price = parseFloat(document.getElementById('apm-price').value);
+    const stock = parseInt(document.getElementById('apm-stock').value) || 0;
+    const compare = parseFloat(document.getElementById('apm-compare').value) || null;
+    const desc = document.getElementById('apm-desc').value.trim();
+    let imageUrl = document.getElementById('apm-image').value.trim();
+    const file = document.getElementById('apm-file')?.files?.[0];
+    const featured = document.getElementById('apm-featured')?.checked || false;
+    if (!vendorId || !title || !categoryId || !price) { Toast.warning('Fill vendor, title, category and price'); return; }
+    const btn = document.getElementById('apm-submit');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating...';
+    try {
+      if (file) imageUrl = await Storage.uploadProductImage(file, vendorId);
+      await Products.create({ vendor_id: vendorId, category_id: categoryId, title, description: desc, price, compare_at_price: compare, stock_quantity: stock, images: imageUrl ? [imageUrl] : [], approval_status: 'approved', featured });
+      Toast.success('Product created and approved!');
+      Modal.close(); loadAdminTab();
+    } catch (err) { Toast.error(err.message); btn.disabled = false; btn.textContent = 'Create Product'; }
+  });
 }
 
 async function adminUpdateProduct(productId, status) {
@@ -255,4 +322,43 @@ async function adminOrders(c) {
       </tr>`).join('')}
     </tbody></table></div>`}
   `;
+}
+
+async function adminAnnouncements(c) {
+  const announcements = await Announcements.getAll();
+  c.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+      <h2 style="font-size:1.5rem;font-weight:800">Announcements to Vendors</h2>
+      <button class="btn btn-primary" id="admin-announce-btn"><i data-lucide="megaphone" class="w-4 h-4"></i> New</button>
+    </div>
+    <div class="glass-card" style="padding:1.5rem;margin-bottom:1.5rem">
+      <h3 style="font-weight:700;margin-bottom:1rem">Send Announcement</h3>
+      <div class="form-group"><label class="form-label">Title</label><input type="text" class="form-input" id="ann-title" placeholder="e.g. Holiday Sales Boost"></div>
+      <div class="form-group"><label class="form-label">Message</label><textarea class="form-input" id="ann-msg" rows="4" placeholder="Write message to all vendors..."></textarea></div>
+      <button class="btn btn-primary" id="ann-send"><i data-lucide="send" class="w-4 h-4"></i> Send to All Vendors</button>
+    </div>
+    <h3 style="font-weight:700;margin-bottom:1rem">Recent (${announcements.length})</h3>
+    ${announcements.length === 0 ? '<p style="color:var(--text-muted)">No announcements yet</p>' : announcements.map(a => `
+      <div class="glass-card" style="padding:1.25rem;margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:1rem">
+          <div style="flex:1"><div style="font-weight:700">${sanitize(a.title)}</div><div style="font-size:0.9rem;color:var(--text-secondary);margin-top:0.25rem;white-space:pre-wrap">${sanitize(a.message)}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem">By ${sanitize(a.profiles?.name||'Admin')} · ${formatDate(a.created_at)}</div></div>
+          <button class="btn btn-ghost btn-sm" onclick="adminDeleteAnnounce('${a.id}')" style="color:var(--error)"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+  document.getElementById('ann-send')?.addEventListener('click', async () => {
+    const title = document.getElementById('ann-title').value.trim();
+    const message = document.getElementById('ann-msg').value.trim();
+    if (!title || !message) { Toast.warning('Title and message required'); return; }
+    const btn = document.getElementById('ann-send');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sending...';
+    try { await Announcements.create(title, message); Toast.success('Announcement sent to all vendors!'); loadAdminTab(); } catch (err) { Toast.error(err.message); btn.disabled = false; btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Send to All Vendors'; if (window.lucide) lucide.createIcons(); }
+  });
+  document.getElementById('admin-announce-btn')?.addEventListener('click', () => { document.getElementById('ann-title')?.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  if (window.lucide) lucide.createIcons();
+}
+
+async function adminDeleteAnnounce(id) {
+  try { await Announcements.remove(id); Toast.success('Deleted'); loadAdminTab(); } catch (err) { Toast.error(err.message); }
 }

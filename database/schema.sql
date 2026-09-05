@@ -108,6 +108,15 @@ CREATE TABLE public.newsletter_subscribers (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Announcements (admin → vendors)
+CREATE TABLE public.announcements (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 
 -- ============================================
 -- INDEXES
@@ -124,6 +133,7 @@ CREATE INDEX idx_order_items_order ON public.order_items(order_id);
 CREATE INDEX idx_reviews_product ON public.reviews(product_id);
 CREATE INDEX idx_vendors_approval ON public.vendors(approval_status);
 CREATE INDEX idx_vendors_profile ON public.vendors(profile_id);
+CREATE INDEX idx_announcements_created ON public.announcements(created_at DESC);
 
 
 -- ============================================
@@ -186,6 +196,7 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================
@@ -452,6 +463,30 @@ CREATE POLICY "newsletter_select_admin"
   TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
+-- ============================================
+-- RLS POLICIES — announcements
+-- ============================================
+
+-- Vendors and admins can view announcements
+CREATE POLICY "announcements_select_vendor_admin"
+  ON public.announcements FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('vendor','admin'))
+  );
+
+-- Only admins can create announcements
+CREATE POLICY "announcements_insert_admin"
+  ON public.announcements FOR INSERT
+  TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Only admins can delete announcements
+CREATE POLICY "announcements_delete_admin"
+  ON public.announcements FOR DELETE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
 
 -- ============================================
 -- STORAGE BUCKETS
@@ -518,6 +553,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.order_items TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.reviews TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated;
+GRANT SELECT ON public.announcements TO authenticated;
+GRANT SELECT, INSERT, DELETE ON public.announcements TO authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO supabase_auth_admin, postgres;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO supabase_auth_admin, postgres;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO supabase_auth_admin, postgres;

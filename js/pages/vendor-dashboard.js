@@ -26,6 +26,7 @@ async function renderVendorDashboardPage() {
             <button class="sidebar-nav-item active" data-tab="overview"><i data-lucide="bar-chart-3" class="w-4 h-4"></i> Overview</button>
             <button class="sidebar-nav-item" data-tab="products"><i data-lucide="package" class="w-4 h-4"></i> Products</button>
             <button class="sidebar-nav-item" data-tab="orders"><i data-lucide="shopping-bag" class="w-4 h-4"></i> Orders</button>
+            <button class="sidebar-nav-item" data-tab="announcements"><i data-lucide="megaphone" class="w-4 h-4"></i> Announcements</button>
             <button class="sidebar-nav-item" data-tab="settings"><i data-lucide="settings" class="w-4 h-4"></i> Store Settings</button>
           </nav>
         </aside>
@@ -83,6 +84,7 @@ async function loadVendorTab() {
       case 'overview': await renderVendorOverview(content, state); break;
       case 'products': await renderVendorProducts(content, state); break;
       case 'orders': await renderVendorOrders(content, state); break;
+      case 'announcements': await renderVendorAnnouncements(content, state); break;
       case 'settings': await renderVendorSettings(content, state); break;
     }
     if (window.lucide) lucide.createIcons();
@@ -462,4 +464,19 @@ async function renderVendorSettings(container, state) {
       if (window.lucide) lucide.createIcons();
     }
   });
+}
+
+// ---- Announcements Tab (vendor) ----
+async function renderVendorAnnouncements(container, state) {
+  const announcements = await Announcements.getAll();
+  container.innerHTML = `
+    <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Announcements</h2>
+    ${announcements.length === 0 ? '<p style="color:var(--text-muted)">No announcements — you are up to date.</p>' : announcements.map(a => `
+      <div class="glass-card" style="padding:1.25rem;margin-bottom:0.75rem">
+        <div style="font-weight:700">${sanitize(a.title)}</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-top:0.25rem;white-space:pre-wrap">${sanitize(a.message)}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem">From ${sanitize(a.profiles?.name||'Admin')} · ${formatDate(a.created_at)}</div>
+      </div>
+    `).join('')}
+  `;
 }

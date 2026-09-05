@@ -419,6 +419,38 @@ const Newsletter = {
 
 
 // ============================================
+// Announcement Helpers
+// ============================================
+
+const Announcements = {
+  async getAll() {
+    const { data, error } = await sb
+      .from('announcements')
+      .select('*, profiles!announcements_created_by_fkey(name)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async create(title, message) {
+    const user = await Auth.getUser();
+    const { data, error } = await sb
+      .from('announcements')
+      .insert({ title, message, created_by: user?.id })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async remove(id) {
+    const { error } = await sb.from('announcements').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
+
+// ============================================
 // Storage Helpers
 // ============================================
 
