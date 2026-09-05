@@ -465,31 +465,39 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies: anyone can view, authenticated can upload
+DROP POLICY IF EXISTS "storage_select_product_images" ON storage.objects;
 CREATE POLICY "storage_select_product_images" ON storage.objects
   FOR SELECT USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "storage_insert_product_images" ON storage.objects;
 CREATE POLICY "storage_insert_product_images" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "storage_update_product_images" ON storage.objects;
 CREATE POLICY "storage_update_product_images" ON storage.objects
   FOR UPDATE TO authenticated
   USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "storage_delete_product_images" ON storage.objects;
 CREATE POLICY "storage_delete_product_images" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "storage_select_vendor_logos" ON storage.objects;
 CREATE POLICY "storage_select_vendor_logos" ON storage.objects
   FOR SELECT USING (bucket_id = 'vendor-logos');
 
+DROP POLICY IF EXISTS "storage_insert_vendor_logos" ON storage.objects;
 CREATE POLICY "storage_insert_vendor_logos" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'vendor-logos');
 
+DROP POLICY IF EXISTS "storage_select_avatars" ON storage.objects;
 CREATE POLICY "storage_select_avatars" ON storage.objects
   FOR SELECT USING (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "storage_insert_avatars" ON storage.objects;
 CREATE POLICY "storage_insert_avatars" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'avatars');
