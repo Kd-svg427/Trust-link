@@ -41,6 +41,12 @@ async function renderLoginPage() {
           </form>
         </div>
 
+        <!-- Admin link -->
+        <div style="text-align:center;margin-top:1rem">
+          <a href="#/admin" id="login-admin-link" style="font-size:0.8rem;color:var(--text-muted);text-decoration:underline">Admin access</a>
+          <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem">· triple-click logo or use admin login</span>
+        </div>
+
         <!-- Register Form (hidden initially) -->
         <div id="register-form-container" style="display:none">
           <form id="register-form" class="glass-card" style="padding:1.5rem">
@@ -184,7 +190,11 @@ async function initLoginPage() {
 
         await loadUserState(data.user);
         updateHeaderAuth();
-        Toast.success('Account created! Welcome to TrustLink! 🎉');
+        if (role === 'vendor') {
+          Toast.success('Store created! You will be approved within 2 hours. Check your vendor dashboard for updates.');
+        } else {
+          Toast.success('Account created! Welcome to TrustLink! 🎉');
+        }
         App.navigate(role === 'vendor' ? '/vendor' : '/');
       }
     } catch (err) {

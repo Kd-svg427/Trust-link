@@ -58,6 +58,14 @@ async function initVendorDashboardPage() {
       return;
     }
   }
+  // First-time pending vendor notice (2-hour approval)
+  const v = App.getState().vendor;
+  if (v && v.approval_status === 'pending' && !sessionStorage.getItem('trustlink_vendor_pending_shown')) {
+    sessionStorage.setItem('trustlink_vendor_pending_shown', '1');
+    setTimeout(() => {
+      Toast.info('Your store is under review — you will be approved within 2 hours. You will be notified and can then list products.', { duration: 6000 });
+    }, 400);
+  }
 
   // Sidebar tab clicks
   document.querySelectorAll('#vendor-sidebar .sidebar-nav-item').forEach(btn => {
@@ -93,6 +101,21 @@ async function loadVendorTab() {
   }
 }
 
+// ---- Helpers ----
+function vendorPendingBanner(vendor) {
+  if (!vendor || vendor.approval_status !== 'pending') return '';
+  return `
+    <div class="glass-card" style="padding:1rem 1.25rem;margin-bottom:1.5rem;border-color:var(--warning);background:var(--warning-bg);display:flex;align-items:center;gap:0.75rem">
+      <i data-lucide="clock" class="w-5 h-5" style="color:var(--warning)"></i>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:0.9rem">Store pending approval</div>
+        <div style="font-size:0.8rem;color:var(--text-secondary)">Your store is under review. You will be approved within 2 hours. You can set up products now — they will go live after approval.</div>
+      </div>
+      <a href="#/login" style="font-size:0.8rem;color:var(--warning);text-decoration:underline;white-space:nowrap">Contact support</a>
+    </div>
+  `;
+}
+
 // ---- Overview Tab ----
 async function renderVendorOverview(container, state) {
   const vendor = state.vendor;
@@ -103,6 +126,7 @@ async function renderVendorOverview(container, state) {
   const pendingOrders = orders.filter(o => ['pending', 'processing'].includes(o.status)).length;
 
   container.innerHTML = `
+    ${vendorPendingBanner(vendor)}
     <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Store Overview</h2>
     <div class="stats-grid">
       <div class="stat-card">
@@ -158,6 +182,7 @@ async function renderVendorProducts(container, state) {
   const categories = await Categories.getAll();
 
   container.innerHTML = `
+    ${vendorPendingBanner(vendor)}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
       <h2 style="font-size:1.5rem;font-weight:800">My Products (${products.length})</h2>
       <button class="btn btn-primary" id="add-product-btn"><i data-lucide="plus" class="w-4 h-4"></i> Add Product</button>
@@ -356,6 +381,7 @@ async function renderVendorOrders(container, state) {
   const orders = await Orders.getByVendor(state.vendor.id);
 
   container.innerHTML = `
+    ${vendorPendingBanner(state.vendor)}
     <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Orders (${orders.length})</h2>
     ${orders.length === 0
       ? '<div class="empty-state"><div class="empty-state-icon">📦</div><h3>No orders yet</h3></div>'
@@ -400,6 +426,7 @@ async function renderVendorSettings(container, state) {
   const vendor = state.vendor || {};
 
   container.innerHTML = `
+    ${vendorPendingBanner(state.vendor)}
     <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Store Settings</h2>
     <div class="glass-card" style="padding:1.5rem;max-width:600px">
       <form id="vendor-settings-form">
@@ -470,6 +497,7 @@ async function renderVendorSettings(container, state) {
 async function renderVendorAnnouncements(container, state) {
   const announcements = await Announcements.getAll();
   container.innerHTML = `
+    ${vendorPendingBanner(state.vendor)}
     <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Announcements</h2>
     ${announcements.length === 0 ? '<p style="color:var(--text-muted)">No announcements — you are up to date.</p>' : announcements.map(a => `
       <div class="glass-card" style="padding:1.25rem;margin-bottom:0.75rem">
