@@ -5,44 +5,61 @@
 async function renderHomePage() {
   return `
     <div id="home-page">
-      <!-- Hero Section -->
-      <section class="hero">
-        <div class="hero-bg"></div>
-        <div class="hero-pattern"></div>
-        <div class="hero-content">
+      <!-- Hero Section — flat, sales-direct -->
+      <section class="hero" style="background:var(--bg-primary);border-bottom:1px solid var(--border-color)">
+        <div class="hero-content" style="padding-top:2.5rem;padding-bottom:2.5rem">
           <div>
-            <div class="section-badge" style="margin-bottom:1.5rem">
-              <i data-lucide="shield-check" class="w-4 h-4"></i>
-              Ghana's Trusted Marketplace
+            <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-card);font-size:0.75rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:1rem">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5" style="color:var(--success)"></i> Verified vendors only
             </div>
-            <h1 style="font-size:3rem;font-weight:900;line-height:1.1;margin-bottom:1.25rem;color:white">
-              Shop with <span style="background:linear-gradient(135deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent">Confidence</span>
+            <h1 style="font-size:2.75rem;font-weight:800;line-height:1.15;margin-bottom:1rem;letter-spacing:-0.02em">
+              Quality products<br>
+              <span style="color:var(--primary-light)">from Ghanaian vendors.</span>
             </h1>
-            <p style="font-size:1.1rem;color:rgba(255,255,255,0.75);margin-bottom:2rem;max-width:500px;line-height:1.7">
-              Verified Ghanaian vendors. Pay with MTN MoMo, Vodafone Cash or card. Delivered nationwide in 1-3 days.
+            <p style="font-size:1rem;color:var(--text-secondary);margin-bottom:1.5rem;max-width:520px;line-height:1.6">
+              Shop by category, pay with MTN MoMo, Vodafone Cash or card, and track delivery nationwide. WhatsApp support on every order.
             </p>
-            <div style="display:flex;gap:1rem;flex-wrap:wrap">
-              <a href="#/products" class="btn btn-gold btn-lg">
-                <i data-lucide="shopping-bag" class="w-5 h-5"></i> Browse Products
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem">
+              <a href="#/products" class="btn btn-primary btn-lg" style="min-width:160px">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i> Shop Products
               </a>
-              <a href="#/checkout" class="btn btn-outline btn-lg" style="border-color:rgba(255,255,255,0.3);color:white">
-                How It Works
+              <a href="#/login" class="btn btn-outline btn-lg">
+                <i data-lucide="store" class="w-5 h-5"></i> Sell on TrustLink
               </a>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:0.8rem;color:var(--text-muted)">
+              <span style="display:flex;align-items:center;gap:0.375rem"><i data-lucide="lock" class="w-4 h-4"></i> Secure checkout</span>
+              <span style="width:4px;height:4px;border-radius:50%;background:var(--border-light)"></span>
+              <span style="display:flex;align-items:center;gap:0.375rem"><i data-lucide="truck" class="w-4 h-4"></i> 1-3 day delivery</span>
+              <span style="width:4px;height:4px;border-radius:50%;background:var(--border-light)"></span>
+              <span style="display:flex;align-items:center;gap:0.375rem"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp support</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-top:1.25rem">
+              <span style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Pay with</span>
+              <span class="badge" style="background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-secondary);text-transform:none;letter-spacing:0">MTN MoMo</span>
+              <span class="badge" style="background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-secondary);text-transform:none;letter-spacing:0">Vodafone Cash</span>
+              <span class="badge" style="background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-secondary);text-transform:none;letter-spacing:0">Card</span>
             </div>
           </div>
-          <div style="display:flex;justify-content:center">
-            <div style="position:relative">
-              <div style="width:340px;height:340px;border-radius:50%;background:rgba(255,179,0,0.08);border:1px solid rgba(255,179,0,0.15);display:flex;align-items:center;justify-content:center">
-                <img src="icons/icon-512.png" alt="TrustLink" style="width:200px;height:200px;border-radius:24px;box-shadow:var(--shadow-lg)">
+          <div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+              <div class="card" style="padding:0;overflow:hidden">
+                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop" alt="Featured product" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+                <div style="padding:0.75rem"><div style="font-size:0.8rem;font-weight:600">Featured</div><div style="font-size:0.75rem;color:var(--text-muted)">Handpicked by team</div></div>
               </div>
-              <div class="glass-card" style="position:absolute;bottom:20px;left:-30px;padding:0.875rem 1.25rem">
-                <div style="display:flex;align-items:center;gap:0.5rem">
-                  <i data-lucide="shield-check" class="w-5 h-5" style="color:var(--success)"></i>
-                  <div>
-                    <div style="font-weight:700;font-size:0.85rem">Verified Vendors</div>
-                    <div style="font-size:0.75rem;color:var(--text-muted)">Vetted before listing</div>
-                  </div>
-                </div>
+              <div class="card" style="padding:0;overflow:hidden">
+                <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop" alt="Category" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+                <div style="padding:0.75rem"><div style="font-size:0.8rem;font-weight:600">New arrivals</div><div style="font-size:0.75rem;color:var(--text-muted)">Weekly drops</div></div>
+              </div>
+              <div class="card" style="padding:0;overflow:hidden">
+                <img src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=400&h=400&fit=crop" alt="Vendor" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+                <div style="padding:0.75rem"><div style="font-size:0.8rem;font-weight:600">Verified stores</div><div style="font-size:0.75rem;color:var(--text-muted)">Vetted in Ghana</div></div>
+              </div>
+              <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:1.25rem">
+                <div style="width:48px;height:48px;border-radius:50%;background:var(--success-bg);display:flex;align-items:center;justify-content:center;margin-bottom:0.75rem"><i data-lucide="shield-check" class="w-6 h-6" style="color:var(--success)"></i></div>
+                <div style="font-size:0.9rem;font-weight:700">Shop with confidence</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">Returns within 7 days</div>
+                <a href="#/products" class="btn btn-primary btn-sm" style="margin-top:0.75rem;width:100%">Browse now</a>
               </div>
             </div>
           </div>

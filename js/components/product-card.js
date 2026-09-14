@@ -17,15 +17,7 @@ function renderProductCard(product) {
     <div class="product-card" data-product-id="${product.id}" onclick="App.navigate('/product/${product.id}')">
       <div class="product-card-image">
         <img src="${image}" alt="${sanitizeAttr(product.title)}" loading="lazy">
-        <div class="product-card-badges">
-          ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ''}
-          ${product.featured ? `<span class="featured-badge">⭐ Featured</span>` : ''}
-        </div>
-        <div class="product-card-actions">
-          <button class="btn-icon" onclick="event.stopPropagation(); addToCartFromCard('${product.id}')" title="Add to Cart">
-            <i data-lucide="shopping-cart" class="w-4 h-4"></i>
-          </button>
-        </div>
+        ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ''}
       </div>
       <div class="product-card-body">
         <div class="product-card-vendor">${sanitize(vendorName)}</div>
@@ -35,10 +27,15 @@ function renderProductCard(product) {
           ${product.compare_at_price ? `<span class="price-original">₵${formatPrice(product.compare_at_price)}</span>` : ''}
         </div>
         ${product.stock_quantity <= 5 && product.stock_quantity > 0
-          ? `<div style="font-size:0.75rem;color:var(--warning);margin-top:0.375rem">Only ${product.stock_quantity} left!</div>`
+          ? `<div style="font-size:0.75rem;color:var(--warning);margin-top:0.375rem;font-weight:600">Only ${product.stock_quantity} left</div>`
           : ''}
         ${product.stock_quantity === 0
-          ? `<div style="font-size:0.75rem;color:var(--error);margin-top:0.375rem">Out of Stock</div>`
+          ? `<div style="font-size:0.75rem;color:var(--error);margin-top:0.375rem;font-weight:600">Out of stock</div>`
+          : ''}
+        ${product.stock_quantity > 0
+          ? `<button class="btn btn-primary btn-sm" style="width:100%;margin-top:0.75rem" onclick="event.stopPropagation(); addToCartFromCard('${product.id}')">
+              Add to Cart
+            </button>`
           : ''}
       </div>
     </div>

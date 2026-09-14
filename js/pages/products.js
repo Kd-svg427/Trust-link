@@ -47,7 +47,7 @@ async function renderProductsPage(params = {}) {
         </div>
 
         <!-- Products Grid -->
-        <div class="product-grid stagger-children" id="products-grid">
+        <div class="product-grid" id="products-grid">
           ${Array(8).fill(renderProductCardSkeleton()).join('')}
         </div>
 
