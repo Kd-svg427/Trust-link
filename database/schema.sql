@@ -1,4 +1,4 @@
--- ============================================
+﻿-- ============================================
 -- TrustLink Database Schema
 -- Run this FIRST in your Supabase SQL Editor
 -- ============================================
@@ -108,7 +108,7 @@ CREATE TABLE public.newsletter_subscribers (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Announcements (admin → vendors)
+-- Announcements (admin ÔåÆ vendors)
 CREATE TABLE public.announcements (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
@@ -150,7 +150,7 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'name', ''),
     COALESCE(NEW.email, ''),
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'buyer')
+    'buyer'
   );
   RETURN NEW;
 END;
@@ -185,7 +185,7 @@ CREATE TRIGGER tr_reviews_updated BEFORE UPDATE ON public.reviews
 
 
 -- ============================================
--- ROW LEVEL SECURITY — Enable on all tables
+-- ROW LEVEL SECURITY ÔÇö Enable on all tables
 -- ============================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -200,7 +200,7 @@ ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================
--- RLS POLICIES — profiles
+-- RLS POLICIES ÔÇö profiles
 -- ============================================
 
 -- Authenticated users can view all profiles (needed for reviews, vendor info display)
@@ -224,7 +224,7 @@ CREATE POLICY "profiles_update_admin"
 
 
 -- ============================================
--- RLS POLICIES — vendors
+-- RLS POLICIES ÔÇö vendors
 -- ============================================
 
 -- Anyone (including anon) can view approved vendors
@@ -265,7 +265,7 @@ CREATE POLICY "vendors_update_admin"
 
 
 -- ============================================
--- RLS POLICIES — categories
+-- RLS POLICIES ÔÇö categories
 -- ============================================
 
 -- Everyone can view categories (public)
@@ -291,7 +291,7 @@ CREATE POLICY "categories_delete_admin"
 
 
 -- ============================================
--- RLS POLICIES — products
+-- RLS POLICIES ÔÇö products
 -- ============================================
 
 -- Anyone can view approved products (public catalog)
@@ -343,7 +343,7 @@ CREATE POLICY "products_delete_admin"
 
 
 -- ============================================
--- RLS POLICIES — orders
+-- RLS POLICIES ÔÇö orders
 -- ============================================
 
 -- Buyers can view their own orders
@@ -384,7 +384,7 @@ CREATE POLICY "orders_update_admin"
 
 
 -- ============================================
--- RLS POLICIES — order_items
+-- RLS POLICIES ÔÇö order_items
 -- ============================================
 
 -- Users can view order items for orders they can see (buyer or vendor)
@@ -415,7 +415,7 @@ CREATE POLICY "order_items_insert_buyer"
 
 
 -- ============================================
--- RLS POLICIES — reviews
+-- RLS POLICIES ÔÇö reviews
 -- ============================================
 
 -- Anyone can read reviews (public)
@@ -449,7 +449,7 @@ CREATE POLICY "reviews_delete_admin"
 
 
 -- ============================================
--- RLS POLICIES — newsletter_subscribers
+-- RLS POLICIES ÔÇö newsletter_subscribers
 -- ============================================
 
 -- Anyone can subscribe (insert)
@@ -464,7 +464,7 @@ CREATE POLICY "newsletter_select_admin"
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
 -- ============================================
--- RLS POLICIES — announcements
+-- RLS POLICIES ÔÇö announcements
 -- ============================================
 
 -- Vendors and admins can view announcements
@@ -507,17 +507,23 @@ CREATE POLICY "storage_select_product_images" ON storage.objects
 DROP POLICY IF EXISTS "storage_insert_product_images" ON storage.objects;
 CREATE POLICY "storage_insert_product_images" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'product-images');
+  WITH CHECK (bucket_id = 'product-images' AND (storage.foldername(name))[1] = (
+    SELECT id::text FROM public.vendors WHERE profile_id = auth.uid()
+  ));
 
 DROP POLICY IF EXISTS "storage_update_product_images" ON storage.objects;
 CREATE POLICY "storage_update_product_images" ON storage.objects
   FOR UPDATE TO authenticated
-  USING (bucket_id = 'product-images');
+  USING (bucket_id = 'product-images' AND (storage.foldername(name))[1] = (
+    SELECT id::text FROM public.vendors WHERE profile_id = auth.uid()
+  ));
 
 DROP POLICY IF EXISTS "storage_delete_product_images" ON storage.objects;
 CREATE POLICY "storage_delete_product_images" ON storage.objects
   FOR DELETE TO authenticated
-  USING (bucket_id = 'product-images');
+  USING (bucket_id = 'product-images' AND (storage.foldername(name))[1] = (
+    SELECT id::text FROM public.vendors WHERE profile_id = auth.uid()
+  ));
 
 DROP POLICY IF EXISTS "storage_select_vendor_logos" ON storage.objects;
 CREATE POLICY "storage_select_vendor_logos" ON storage.objects
@@ -526,7 +532,9 @@ CREATE POLICY "storage_select_vendor_logos" ON storage.objects
 DROP POLICY IF EXISTS "storage_insert_vendor_logos" ON storage.objects;
 CREATE POLICY "storage_insert_vendor_logos" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'vendor-logos');
+  WITH CHECK (bucket_id = 'vendor-logos' AND (storage.foldername(name))[1] = (
+    SELECT id::text FROM public.vendors WHERE profile_id = auth.uid()
+  ));
 
 DROP POLICY IF EXISTS "storage_select_avatars" ON storage.objects;
 CREATE POLICY "storage_select_avatars" ON storage.objects
@@ -535,10 +543,10 @@ CREATE POLICY "storage_select_avatars" ON storage.objects
 DROP POLICY IF EXISTS "storage_insert_avatars" ON storage.objects;
 CREATE POLICY "storage_insert_avatars" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'avatars');
+  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ============================================
--- GRANTS — ensure anon can read public catalog even when "Automatically expose new tables" is OFF
+-- GRANTS ÔÇö ensure anon can read public catalog even when "Automatically expose new tables" is OFF
 -- ============================================
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT ON public.categories TO anon, authenticated;

@@ -3,9 +3,9 @@
 // Cache-first for static assets, network-first for API
 // ============================================
 
-const CACHE_NAME = 'trustlink-v7';
-const STATIC_CACHE = 'trustlink-static-v7';
-const DATA_CACHE = 'trustlink-data-v7';
+const CACHE_NAME = 'trustlink-v8';
+const STATIC_CACHE = 'trustlink-static-v8';
+const DATA_CACHE = 'trustlink-data-v8';
 
 // Static assets to pre-cache (app shell)
 const STATIC_ASSETS = [
@@ -195,21 +195,11 @@ async function cacheFirstStrategy(request) {
 async function networkFirstStrategy(request) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(DATA_CACHE);
-      cache.put(request, response.clone());
-    }
+    // Never cache authenticated API responses — contains user data
+    // Only cache if response has a no-store or private cache hint, skip caching entirely for API
     return response;
   } catch (err) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-
-    // Return offline page for navigation requests
-    if (request.mode === 'navigate') {
-      return new Response(OFFLINE_PAGE, {
-        headers: { 'Content-Type': 'text/html' }
-      });
-    }
+    // No offline fallback for API calls — fail loudly instead of serving stale data
     throw err;
   }
 }

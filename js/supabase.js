@@ -454,9 +454,23 @@ const Announcements = {
 // Storage Helpers
 // ============================================
 
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+function validateImageFile(file) {
+  if (!file) throw new Error('No file selected');
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error('Only JPEG, PNG, WebP, and GIF images are allowed');
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('File must be under 5MB');
+  }
+}
+
 const Storage = {
   async uploadProductImage(file, vendorId) {
-    const ext = file.name.split('.').pop();
+    validateImageFile(file);
+    const ext = file.name.split('.').pop().toLowerCase();
     const path = `${vendorId}/${Date.now()}.${ext}`;
     const { data, error } = await sb.storage
       .from('product-images')
@@ -469,7 +483,8 @@ const Storage = {
   },
 
   async uploadVendorLogo(file, vendorId) {
-    const ext = file.name.split('.').pop();
+    validateImageFile(file);
+    const ext = file.name.split('.').pop().toLowerCase();
     const path = `${vendorId}/${Date.now()}.${ext}`;
     const { data, error } = await sb.storage
       .from('vendor-logos')

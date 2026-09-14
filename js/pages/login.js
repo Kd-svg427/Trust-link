@@ -203,17 +203,6 @@ async function doLogin(email, password) {
     updateHeaderAuth();
     const profile = App.getState().profile;
 
-    // Auto-detect admin by email
-    if (email.toLowerCase() === 'kd@gmail.com') {
-      if (profile.role !== 'admin') {
-        await Profiles.update(profile.id, { role: 'admin' });
-        App.setState({ ...App.getState(), profile: { ...profile, role: 'admin' } });
-      }
-      Toast.success('Welcome to the Admin Panel');
-      App.navigate('/admin');
-      return;
-    }
-
     Toast.success(`Welcome back, ${profile?.name || 'User'}!`);
     if (profile?.role === 'vendor') App.navigate('/vendor');
     else if (profile?.role === 'admin') App.navigate('/admin');
