@@ -3,9 +3,9 @@
 // Cache-first for static assets, network-first for API
 // ============================================
 
-const CACHE_NAME = 'trustlink-v6';
-const STATIC_CACHE = 'trustlink-static-v6';
-const DATA_CACHE = 'trustlink-data-v6';
+const CACHE_NAME = 'trustlink-v7';
+const STATIC_CACHE = 'trustlink-static-v7';
+const DATA_CACHE = 'trustlink-data-v7';
 
 // Static assets to pre-cache (app shell)
 const STATIC_ASSETS = [

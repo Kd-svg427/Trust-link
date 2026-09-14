@@ -83,25 +83,6 @@ function initHeader() {
     });
   }
 
-  // Admin triple-click gate
-  let clickCount = 0;
-  let clickTimer = null;
-  const logo = document.getElementById('navbar-logo');
-  if (logo) {
-    logo.addEventListener('click', (e) => {
-      clickCount++;
-      if (clickCount === 3) {
-        e.preventDefault();
-        clickCount = 0;
-        clearTimeout(clickTimer);
-        showAdminGate();
-      } else {
-        clearTimeout(clickTimer);
-        clickTimer = setTimeout(() => { clickCount = 0; }, 600);
-      }
-    });
-  }
-
   // Cart count listener
   window.addEventListener('cart-updated', (e) => {
     updateCartCount(e.detail.count);
@@ -177,47 +158,5 @@ function updateActiveNavLink(route) {
     else if (nav === 'products' && route.startsWith('/products')) link.classList.add('active');
     else if (nav === 'cart' && route.startsWith('/cart')) link.classList.add('active');
     else if (nav === 'dashboard' && (route.startsWith('/dashboard') || route.startsWith('/vendor') || route.startsWith('/admin'))) link.classList.add('active');
-  });
-}
-
-function showAdminGate() {
-  const state = App.getState();
-  if (!state.profile) {
-    Toast.warning('Please log in first');
-    App.navigate('/login');
-    return;
-  }
-
-  Modal.show('🔒 Admin Access', `
-    <p style="color:var(--text-secondary);margin-bottom:1rem">Enter the admin password to access the control panel.</p>
-    <div class="form-group">
-      <input type="password" class="form-input" id="admin-gate-input" placeholder="Enter password" autofocus>
-    </div>
-  `, {
-    footerHtml: `
-      <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
-      <button class="btn btn-primary" id="admin-gate-submit">Access Panel</button>
-    `
-  });
-
-  const submit = () => {
-    const input = document.getElementById('admin-gate-input');
-    if (input && input.value === ADMIN_GATE_PASSWORD) {
-      if (state.profile.role !== 'admin') {
-        Modal.close();
-        Toast.error('Your account does not have admin privileges');
-        return;
-      }
-      Modal.close();
-      App.navigate('/admin');
-      Toast.success('Welcome to the Admin Panel');
-    } else {
-      Toast.error('Incorrect password');
-    }
-  };
-
-  document.getElementById('admin-gate-submit')?.addEventListener('click', submit);
-  document.getElementById('admin-gate-input')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') submit();
   });
 }
