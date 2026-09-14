@@ -5,11 +5,11 @@
 async function renderLoginPage() {
   return `
     <div style="padding-top:80px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem 1rem">
-      <div style="max-width:460px;width:100%" class="animate-fade-in-up">
+      <div style="max-width:460px;width:100%">
         <div style="text-align:center;margin-bottom:2rem">
           <img src="icons/icon-192.png" alt="TrustLink" style="width:56px;height:56px;border-radius:var(--radius-md);margin-bottom:1rem">
           <h1 style="font-size:1.75rem;font-weight:900">
-            Welcome to <span style="background:linear-gradient(135deg,var(--primary-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent">TrustLink</span>
+            Welcome to TrustLink
           </h1>
           <p style="color:var(--text-secondary);margin-top:0.5rem">Ghana's trusted e-commerce marketplace</p>
         </div>
@@ -36,15 +36,9 @@ async function renderLoginPage() {
               <input type="password" class="form-input" id="login-password" placeholder="Enter password" required>
             </div>
             <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="login-submit-btn">
-              <i data-lucide="log-in" class="w-5 h-5"></i> Sign In
+              Sign In
             </button>
           </form>
-        </div>
-
-        <!-- Admin link -->
-        <div style="text-align:center;margin-top:1rem">
-          <a href="#/admin" id="login-admin-link" style="font-size:0.8rem;color:var(--text-muted);text-decoration:underline">Admin access</a>
-          <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem">· triple-click logo or use admin login</span>
         </div>
 
         <!-- Register Form (hidden initially) -->
@@ -84,7 +78,7 @@ async function renderLoginPage() {
               </div>
             </div>
             <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="register-submit-btn">
-              <i data-lucide="user-plus" class="w-5 h-5"></i> Create Account
+              Create Account
             </button>
           </form>
         </div>
@@ -94,7 +88,6 @@ async function renderLoginPage() {
 }
 
 async function initLoginPage() {
-  // Tab switching
   const tabLogin = document.getElementById('tab-login');
   const tabRegister = document.getElementById('tab-register');
   const loginContainer = document.getElementById('login-form-container');
@@ -114,7 +107,6 @@ async function initLoginPage() {
     loginContainer.style.display = 'none';
   });
 
-  // Role selection
   document.querySelectorAll('.role-option').forEach(opt => {
     opt.addEventListener('click', () => {
       document.querySelectorAll('.role-option').forEach(o => {
@@ -126,7 +118,6 @@ async function initLoginPage() {
     });
   });
 
-  // Login form
   document.getElementById('login-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value.trim();
@@ -141,12 +132,11 @@ async function initLoginPage() {
     } catch (err) {
       Toast.error(err.message);
       btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="log-in" class="w-5 h-5"></i> Sign In';
+      btn.innerHTML = 'Sign In';
       if (window.lucide) lucide.createIcons();
     }
   });
 
-  // Register form
   document.getElementById('register-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('register-name').value.trim();
@@ -171,10 +161,8 @@ async function initLoginPage() {
       const data = await Auth.signUp(email, password, { name, phone, role });
 
       if (data.user) {
-        // If role is vendor, create vendor record
         if (role === 'vendor') {
           try {
-            const profile = await Profiles.get(data.user.id);
             await Vendors.create({
               profile_id: data.user.id,
               store_name: name + "'s Store",
@@ -193,14 +181,14 @@ async function initLoginPage() {
         if (role === 'vendor') {
           Toast.success('Store created! You will be approved within 2 hours. Check your vendor dashboard for updates.');
         } else {
-          Toast.success('Account created! Welcome to TrustLink! 🎉');
+          Toast.success('Account created! Welcome to TrustLink!');
         }
         App.navigate(role === 'vendor' ? '/vendor' : '/');
       }
     } catch (err) {
       Toast.error(err.message);
       btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="user-plus" class="w-5 h-5"></i> Create Account';
+      btn.innerHTML = 'Create Account';
       if (window.lucide) lucide.createIcons();
     }
   });
@@ -214,7 +202,7 @@ async function doLogin(email, password) {
     await loadUserState(data.user);
     updateHeaderAuth();
     const profile = App.getState().profile;
-    Toast.success(`Welcome back, ${profile?.name || 'User'}! 👋`);
+    Toast.success(`Welcome back, ${profile?.name || 'User'}!`);
     if (profile?.role === 'vendor') App.navigate('/vendor');
     else if (profile?.role === 'admin') App.navigate('/');
     else App.navigate('/');
