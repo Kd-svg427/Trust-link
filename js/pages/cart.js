@@ -108,6 +108,14 @@ async function initCartPage() {
           <a href="#/products" class="btn btn-ghost" style="width:100%;margin-top:0.5rem;text-align:center">
             Continue Shopping
           </a>
+
+          <!-- QR Handoff (desktop only) -->
+          <div id="qr-handoff-section" style="margin-top:1.25rem;text-align:center;display:none">
+            <hr style="border:none;border-top:1px solid var(--border-color);margin:1rem 0">
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">Continue on your phone</div>
+            <canvas id="qr-code-canvas" style="margin:0 auto"></canvas>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.375rem">Scan to open this page on mobile</div>
+          </div>
         </div>
       </div>
 
@@ -119,6 +127,20 @@ async function initCartPage() {
     `;
 
     if (window.lucide) lucide.createIcons();
+
+    // QR handoff: show on desktop only (>=769px)
+    if (window.matchMedia('(min-width: 769px)').matches && typeof QRCode !== 'undefined') {
+      const qrSection = document.getElementById('qr-handoff-section');
+      const qrCanvas = document.getElementById('qr-code-canvas');
+      if (qrSection && qrCanvas) {
+        qrSection.style.display = 'block';
+        QRCode.toCanvas(qrCanvas, window.location.href, {
+          width: 120,
+          margin: 1,
+          color: { dark: '#f5f5f5', light: '#161616' }
+        });
+      }
+    }
   } catch (err) {
     container.innerHTML = `<div class="empty-state"><h3>Failed to load cart</h3><p>${sanitize(err.message)}</p></div>`;
   }

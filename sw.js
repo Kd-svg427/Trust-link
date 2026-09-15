@@ -3,9 +3,9 @@
 // Cache-first for static assets, network-first for API
 // ============================================
 
-const CACHE_NAME = 'trustlink-v8';
-const STATIC_CACHE = 'trustlink-static-v8';
-const DATA_CACHE = 'trustlink-data-v8';
+const CACHE_NAME = 'trustlink-v9';
+const STATIC_CACHE = 'trustlink-static-v9';
+const DATA_CACHE = 'trustlink-data-v9';
 
 // Static assets to pre-cache (app shell)
 const STATIC_ASSETS = [
@@ -21,6 +21,8 @@ const STATIC_ASSETS = [
   '/js/components/product-card.js',
   '/js/components/modal.js',
   '/js/components/toast.js',
+  '/js/components/modal.js',
+  '/js/push.js',
   '/js/pages/home.js',
   '/js/pages/products.js',
   '/js/pages/product-detail.js',

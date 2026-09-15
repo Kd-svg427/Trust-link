@@ -68,10 +68,15 @@ async function initCheckoutPage() {
             </div>
             <div class="form-group">
               <label class="form-label">City</label>
-              <select class="form-input form-select" id="checkout-city" required>
-                <option value="">Select your city</option>
-                ${GHANAIAN_CITIES.map(c => `<option value="${c}">${c}</option>`).join('')}
-              </select>
+              <div style="display:flex;gap:0.5rem">
+                <select class="form-input form-select" id="checkout-city" required style="flex:1">
+                  <option value="">Select your city</option>
+                  ${GHANAIAN_CITIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" id="detect-location-btn" title="Use my location" style="flex-shrink:0">
+                  <i data-lucide="map-pin" class="w-4 h-4"></i>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -144,6 +149,48 @@ async function initCheckoutPage() {
         opt.classList.add('selected');
         opt.querySelector('input[type=radio]').checked = true;
       });
+    });
+
+    // Geolocation: detect city
+    document.getElementById('detect-location-btn')?.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        Toast.warning('Geolocation is not supported by your browser');
+        return;
+      }
+      const btn = document.getElementById('detect-location-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner loader-sm"></span>';
+      Toast.info('Detecting your location...');
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`);
+            const data = await resp.json();
+            const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || '';
+            const match = GHANAIAN_CITIES.find(c => city.toLowerCase().includes(c.toLowerCase()));
+            if (match) {
+              document.getElementById('checkout-city').value = match;
+              Toast.success(`Location detected: ${match}`);
+            } else {
+              Toast.warning('Could not match your location to a Ghanaian city. Please select manually.');
+            }
+          } catch (e) {
+            Toast.warning('Could not determine city. Please select manually.');
+          }
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="map-pin" class="w-4 h-4"></i>';
+          if (window.lucide) lucide.createIcons();
+        },
+        (err) => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="map-pin" class="w-4 h-4"></i>';
+          if (window.lucide) lucide.createIcons();
+          if (err.code === 1) Toast.warning('Location permission denied. Please select your city manually.');
+          else Toast.warning('Could not get your location. Please select manually.');
+        },
+        { timeout: 10000, enableHighAccuracy: false }
+      );
     });
 
     // Place order

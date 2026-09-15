@@ -265,7 +265,7 @@ function showProductModal(product, categories, vendor) {
       </div>
       <div class="form-group">
         <label class="form-label">Or Upload Image</label>
-        <input type="file" class="form-input" id="pm-image-file" accept="image/*" style="padding:0.5rem">
+        <input type="file" class="form-input" id="pm-image-file" accept="image/*" capture="environment" style="padding:0.5rem">
       </div>
     </form>
   `, {
@@ -452,7 +452,7 @@ async function renderVendorSettings(container, state) {
         </div>
         <div class="form-group">
           <label class="form-label">Or Upload Logo</label>
-          <input type="file" class="form-input" id="vs-logo-file" accept="image/*" style="padding:0.5rem">
+          <input type="file" class="form-input" id="vs-logo-file" accept="image/*" capture="environment" style="padding:0.5rem">
         </div>
         <button type="submit" class="btn btn-primary" id="vs-submit"><i data-lucide="save" class="w-4 h-4"></i> Save Settings</button>
       </form>

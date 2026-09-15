@@ -230,7 +230,7 @@ async function showAdminProductModal() {
       <div class="form-group"><label class="form-label">Compare at Price (₵)</label><input type="number" class="form-input" id="apm-compare" step="0.01" placeholder="Optional"></div>
       <div class="form-group"><label class="form-label">Description</label><textarea class="form-input" id="apm-desc" rows="3" placeholder="Product description..."></textarea></div>
       <div class="form-group"><label class="form-label">Image URL</label><input type="url" class="form-input" id="apm-image" placeholder="https://..."></div>
-      <div class="form-group"><label class="form-label">Or Upload Image</label><input type="file" class="form-input" id="apm-file" accept="image/*" style="padding:0.5rem"></div>
+      <div class="form-group"><label class="form-label">Or Upload Image</label><input type="file" class="form-input" id="apm-file" accept="image/*" capture="environment" style="padding:0.5rem"></div>
       <div class="form-group"><label class="form-label">Featured</label><input type="checkbox" id="apm-featured"> <label for="apm-featured" style="font-size:0.9rem">Mark as featured</label></div>
     </form>
   `, {

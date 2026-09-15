@@ -180,15 +180,17 @@ const App = {
   // ==========================================
   setupInstallPrompt() {
     let deferredPrompt = null;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    if (isStandalone) return; // Already installed
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
 
-      // Check if dismissed before
       if (localStorage.getItem('trustlink_install_dismissed')) return;
 
-      // Show install banner
       const banner = document.createElement('div');
       banner.className = 'install-banner';
       banner.id = 'install-banner';
@@ -209,7 +211,7 @@ const App = {
           deferredPrompt.prompt();
           const result = await deferredPrompt.userChoice;
           if (result.outcome === 'accepted') {
-            Toast.success('TrustLink installed! 🎉');
+            Toast.success('TrustLink installed!');
           }
           deferredPrompt = null;
           banner.remove();
@@ -221,6 +223,18 @@ const App = {
         localStorage.setItem('trustlink_install_dismissed', 'true');
       });
     });
+
+    // iOS Safari: show manual install instructions after 3 visits
+    if (isIOS && !localStorage.getItem('trustlink_install_dismissed')) {
+      const visits = parseInt(localStorage.getItem('trustlink_visits') || '0') + 1;
+      localStorage.setItem('trustlink_visits', visits.toString());
+      if (visits >= 3 && !localStorage.getItem('trustlink_ios_prompt_shown')) {
+        localStorage.setItem('trustlink_ios_prompt_shown', '1');
+        setTimeout(() => {
+          Toast.info('To install: tap the Share button, then "Add to Home Screen"', { duration: 8000 });
+        }, 2000);
+      }
+    }
   },
 
   // ==========================================

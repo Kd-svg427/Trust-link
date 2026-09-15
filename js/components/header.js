@@ -4,6 +4,11 @@
 
 function renderHeader() {
   const cartCount = Cart.getCount();
+  const state = App.getState();
+  const isLoggedIn = !!state.profile;
+  const dashLink = isLoggedIn ? (state.profile.role === 'vendor' ? '#/vendor' : '#/dashboard') : '#/login';
+  const dashLabel = isLoggedIn ? 'Account' : 'Login';
+
   return `
     <nav class="navbar" id="navbar">
       <div class="navbar-container">
@@ -25,7 +30,6 @@ function renderHeader() {
           </a>
 
           <div id="nav-auth-section" style="display:flex;align-items:center;gap:0.25rem;flex-wrap:nowrap">
-            <!-- Filled dynamically by updateHeaderAuth -->
           </div>
 
           <button class="btn-icon" id="theme-toggle" title="Toggle dark/light mode" style="margin-left:0.25rem">
@@ -36,6 +40,29 @@ function renderHeader() {
         <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
           <i data-lucide="menu" class="w-6 h-6"></i>
         </button>
+      </div>
+    </nav>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav" id="bottom-nav">
+      <div class="bottom-nav-items">
+        <a href="#/" class="bottom-nav-item" data-bnav="home">
+          <i data-lucide="home" class="w-5 h-5"></i>
+          <span>Home</span>
+        </a>
+        <a href="#/products" class="bottom-nav-item" data-bnav="products">
+          <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+          <span>Shop</span>
+        </a>
+        <a href="#/cart" class="bottom-nav-item" data-bnav="cart" style="position:relative">
+          <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+          <span>Cart</span>
+          ${cartCount > 0 ? `<span class="cart-badge">${cartCount}</span>` : ''}
+        </a>
+        <a href="${dashLink}" class="bottom-nav-item" data-bnav="account">
+          <i data-lucide="user" class="w-5 h-5"></i>
+          <span>${dashLabel}</span>
+        </a>
       </div>
     </nav>
   `;
@@ -111,6 +138,20 @@ function updateCartCount(count) {
     badge.textContent = count;
     badge.style.display = count > 0 ? 'flex' : 'none';
   }
+  // Bottom nav cart badge
+  const bnav = document.querySelector('.bottom-nav-item[data-bnav="cart"] .cart-badge');
+  if (bnav) {
+    bnav.textContent = count;
+    bnav.style.display = count > 0 ? 'flex' : 'none';
+  } else if (count > 0) {
+    const cartItem = document.querySelector('.bottom-nav-item[data-bnav="cart"]');
+    if (cartItem) {
+      const span = document.createElement('span');
+      span.className = 'cart-badge';
+      span.textContent = count;
+      cartItem.appendChild(span);
+    }
+  }
 }
 
 function updateHeaderAuth() {
@@ -151,6 +192,7 @@ function updateHeaderAuth() {
 }
 
 function updateActiveNavLink(route) {
+  // Top nav
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.remove('active');
     const nav = link.getAttribute('data-nav');
@@ -158,5 +200,14 @@ function updateActiveNavLink(route) {
     else if (nav === 'products' && route.startsWith('/products')) link.classList.add('active');
     else if (nav === 'cart' && route.startsWith('/cart')) link.classList.add('active');
     else if (nav === 'dashboard' && (route.startsWith('/dashboard') || route.startsWith('/vendor') || route.startsWith('/admin'))) link.classList.add('active');
+  });
+  // Bottom nav
+  document.querySelectorAll('.bottom-nav-item').forEach(link => {
+    link.classList.remove('active');
+    const nav = link.getAttribute('data-bnav');
+    if (nav === 'home' && (route === '/' || route === '')) link.classList.add('active');
+    else if (nav === 'products' && route.startsWith('/products')) link.classList.add('active');
+    else if (nav === 'cart' && route.startsWith('/cart')) link.classList.add('active');
+    else if (nav === 'account' && (route.startsWith('/dashboard') || route.startsWith('/vendor') || route.startsWith('/admin') || route.startsWith('/login'))) link.classList.add('active');
   });
 }
