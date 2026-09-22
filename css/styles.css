@@ -1528,6 +1528,12 @@ textarea.form-input {
   cursor: not-allowed;
 }
 
+.page-ellipsis {
+  color: var(--text-muted);
+  padding: 0 0.375rem;
+  user-select: none;
+}
+
 
 /* ============================================
    Star Rating
@@ -1928,6 +1934,13 @@ textarea.form-input {
   }
   .promo-banner h2 {
     font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .product-detail-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
   }
 }
 

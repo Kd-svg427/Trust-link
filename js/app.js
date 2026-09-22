@@ -61,7 +61,8 @@ const App = {
     } else if (path === '/login' || path === '/register') {
       // Redirect if already logged in
       if (this.state.profile) {
-        this.navigate(this.state.profile.role === 'vendor' ? '/vendor' : '/dashboard');
+        const role = this.state.profile.role;
+        this.navigate(role === 'vendor' ? '/vendor' : role === 'admin' ? '/admin' : '/dashboard');
         return;
       }
       html = await renderLoginPage();

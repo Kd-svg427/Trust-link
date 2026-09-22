@@ -112,7 +112,7 @@ async function adminVendors(c) {
     <h3 style="font-weight:700;margin-bottom:1rem">All Vendors (${vendors.length})</h3>
     <div class="data-table-container"><table class="data-table"><thead><tr><th></th><th>Store</th><th>Owner</th><th>Phone</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead><tbody>
       ${vendors.map(v => `<tr>
-        <td><img src="${v.logo_url || 'icons/icon-192.png'}" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover"></td>
+        <td><img src="${sanitizeAttr(v.logo_url || 'icons/icon-192.png')}" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover"></td>
         <td style="font-weight:600">${sanitize(v.store_name)}</td>
         <td>${sanitize(v.profiles?.name || '')}<br><span style="font-size:0.75rem;color:var(--text-muted)">${sanitize(v.profiles?.email || '')}</span></td>
         <td>${sanitize(v.momo_number || '')}</td>
@@ -130,7 +130,7 @@ async function adminVendors(c) {
 function renderVendorRow(v) {
   return `
     <div style="display:flex;align-items:center;gap:1rem;padding:1rem;border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:0.75rem;background:var(--bg-card)">
-      <img src="${v.logo_url || 'icons/icon-192.png'}" style="width:48px;height:48px;border-radius:var(--radius-md);object-fit:cover">
+      <img src="${sanitizeAttr(v.logo_url || 'icons/icon-192.png')}" style="width:48px;height:48px;border-radius:var(--radius-md);object-fit:cover">
       <div style="flex:1">
         <div style="font-weight:700">${sanitize(v.store_name)}</div>
         <div style="font-size:0.8rem;color:var(--text-muted)">${sanitize(v.profiles?.name || '')} · ${sanitize(v.profiles?.email || '')}</div>
@@ -168,7 +168,7 @@ async function adminProducts(c) {
         <h3 style="font-weight:700;margin-bottom:1rem;color:var(--warning)">⏳ Pending Review (${pending.length})</h3>
         ${pending.map(p => `
           <div style="display:flex;align-items:center;gap:1rem;padding:1rem;border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:0.75rem;background:var(--bg-card)">
-            <img src="${p.images?.[0] || 'icons/icon-192.png'}" style="width:56px;height:56px;border-radius:var(--radius-md);object-fit:cover">
+            <img src="${sanitizeAttr(p.images?.[0] || 'icons/icon-192.png')}" style="width:56px;height:56px;border-radius:var(--radius-md);object-fit:cover">
             <div style="flex:1">
               <div style="font-weight:700">${sanitize(p.title)}</div>
               <div style="font-size:0.8rem;color:var(--text-muted)">${sanitize(p.vendors?.store_name || '')} · ₵${formatPrice(p.price)}</div>
@@ -183,7 +183,7 @@ async function adminProducts(c) {
     <h3 style="font-weight:700;margin-bottom:1rem">All Products (${products.length})</h3>
     <div class="data-table-container"><table class="data-table"><thead><tr><th></th><th>Product</th><th>Vendor</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>
       ${products.map(p => `<tr>
-        <td><img src="${p.images?.[0] || 'icons/icon-192.png'}" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover"></td>
+        <td><img src="${sanitizeAttr(p.images?.[0] || 'icons/icon-192.png')}" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover"></td>
         <td style="font-weight:600;max-width:200px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sanitize(p.title)}</div></td>
         <td>${sanitize(p.vendors?.store_name || '')}</td>
         <td>₵${formatPrice(p.price)}</td>

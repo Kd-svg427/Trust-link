@@ -34,7 +34,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGci...your-anon-key';
 
 ## Step 3: Serve Locally
 
-You need a local HTTP server (required for ES modules + Supabase API calls). Choose one:
+You need a local HTTP server (required for ES modules + Supabase API calls). The **project root is the site root** — serve it directly. Choose one:
 
 **Option A — Python:**
 ```bash
@@ -44,7 +44,7 @@ python -m http.server 3000
 
 **Option B — Node.js:**
 ```bash
-npx -y serve "trustlink 2.0" -l 3000
+npx -y serve -l 3000
 ```
 
 **Option C — VS Code:**

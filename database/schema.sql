@@ -185,6 +185,65 @@ CREATE TRIGGER tr_reviews_updated BEFORE UPDATE ON public.reviews
 
 
 -- ============================================
+-- MODERATION GUARD — only admins may change approval_status / featured
+-- ============================================
+-- Vendors can reach these rows via their own RLS policies, so this trigger
+-- is the enforcement layer that stops vendors from self-approving.
+CREATE OR REPLACE FUNCTION public.prevent_non_admin_moderation_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+  ) THEN
+    IF NEW.approval_status IS DISTINCT FROM OLD.approval_status THEN
+      RAISE EXCEPTION 'Only admins can change approval status';
+    END IF;
+    IF TG_TABLE_NAME = 'products' AND NEW.featured IS DISTINCT FROM OLD.featured THEN
+      RAISE EXCEPTION 'Only admins can feature products';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_vendors_moderation_guard ON public.vendors;
+CREATE TRIGGER tr_vendors_moderation_guard
+  BEFORE UPDATE ON public.vendors
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_non_admin_moderation_changes();
+
+DROP TRIGGER IF EXISTS tr_products_moderation_guard ON public.products;
+CREATE TRIGGER tr_products_moderation_guard
+  BEFORE UPDATE ON public.products
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_non_admin_moderation_changes();
+
+
+-- ============================================
+-- STOCK — deduct quantity on order and prevent overselling
+-- ============================================
+CREATE OR REPLACE FUNCTION public.apply_order_stock()
+RETURNS TRIGGER AS $$
+DECLARE
+  p_stock INTEGER;
+BEGIN
+  SELECT stock_quantity INTO p_stock FROM public.products WHERE id = NEW.product_id;
+  IF p_stock IS NULL THEN
+    RAISE EXCEPTION 'Product not found: %', NEW.product_id;
+  END IF;
+  IF p_stock < NEW.quantity THEN
+    RAISE EXCEPTION 'Insufficient stock for product % (only % available)', NEW.product_id, p_stock;
+  END IF;
+  UPDATE public.products SET stock_quantity = stock_quantity - NEW.quantity WHERE id = NEW.product_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_order_items_stock ON public.order_items;
+CREATE TRIGGER tr_order_items_stock
+  BEFORE INSERT ON public.order_items
+  FOR EACH ROW EXECUTE FUNCTION public.apply_order_stock();
+
+
+-- ============================================
 -- ROW LEVEL SECURITY ÔÇö Enable on all tables
 -- ============================================
 
@@ -244,13 +303,17 @@ CREATE POLICY "vendors_select_admin"
   TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- Authenticated vendor-role users can create a vendor record for themselves
+-- Authenticated vendor-role users can create a vendor record for themselves.
+-- approval_status is locked to 'pending' so vendors can never self-approve.
+DROP POLICY IF EXISTS "vendors_insert_own" ON public.vendors;
 CREATE POLICY "vendors_insert_own"
   ON public.vendors FOR INSERT
   TO authenticated
-  WITH CHECK (profile_id = auth.uid());
+  WITH CHECK (profile_id = auth.uid() AND approval_status = 'pending');
 
--- Vendors can update their own record (store info, not approval_status)
+-- Vendors can update their own record (store info, not approval_status).
+-- A trigger below additionally blocks vendors from changing approval_status.
+DROP POLICY IF EXISTS "vendors_update_own" ON public.vendors;
 CREATE POLICY "vendors_update_own"
   ON public.vendors FOR UPDATE
   TO authenticated
@@ -311,13 +374,26 @@ CREATE POLICY "products_select_admin"
   TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- Vendors can insert products for their own store
+-- Vendors can insert products for their own store.
+-- approval_status is locked to 'pending' and featured to false so vendors
+-- can never self-approve or self-feature products.
+DROP POLICY IF EXISTS "products_insert_vendor" ON public.products;
 CREATE POLICY "products_insert_vendor"
   ON public.products FOR INSERT
   TO authenticated
-  WITH CHECK (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid()));
+  WITH CHECK (vendor_id IN (SELECT id FROM public.vendors WHERE profile_id = auth.uid())
+    AND approval_status = 'pending' AND featured = false);
 
--- Vendors can update their own products
+-- Admins can insert products on behalf of any vendor (auto-approved)
+DROP POLICY IF EXISTS "products_insert_admin" ON public.products;
+CREATE POLICY "products_insert_admin"
+  ON public.products FOR INSERT
+  TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Vendors can update their own products.
+-- A trigger below blocks non-admins from changing approval_status or featured.
+DROP POLICY IF EXISTS "products_update_vendor" ON public.products;
 CREATE POLICY "products_update_vendor"
   ON public.products FOR UPDATE
   TO authenticated
@@ -561,7 +637,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.order_items TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.reviews TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated;
-GRANT SELECT ON public.announcements TO authenticated;
 GRANT SELECT, INSERT, DELETE ON public.announcements TO authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO supabase_auth_admin, postgres;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO supabase_auth_admin, postgres;

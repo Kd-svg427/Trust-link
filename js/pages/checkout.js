@@ -104,7 +104,7 @@ async function initCheckoutPage() {
 
           ${items.map(item => `
             <div style="display:flex;gap:0.75rem;margin-bottom:1rem;align-items:center">
-              <img src="${item.product.images?.[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100'}"
+              <img src="${sanitizeAttr(item.product.images?.[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100')}"
                    style="width:50px;height:50px;border-radius:var(--radius-sm);object-fit:cover">
               <div style="flex:1;min-width:0">
                 <div style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sanitize(item.product.title)}</div>
@@ -240,7 +240,7 @@ async function placeOrder(items, total) {
       vendorGroups[vid].push(item);
     });
 
-    let lastOrderId = null;
+    const orderIds = [];
 
     // Create one order per vendor
     for (const [vendorId, vendorItems] of Object.entries(vendorGroups)) {
@@ -262,11 +262,11 @@ async function placeOrder(items, total) {
           unit_price: i.product.price
         }))
       );
-      lastOrderId = order.id;
+      orderIds.push(order.id);
     }
 
     Cart.clear();
-    App.navigate('/order-success/' + lastOrderId);
+    App.navigate('/order-success/' + orderIds.join(','));
   } catch (err) {
     Toast.error('Order failed: ' + err.message);
     btn.disabled = false;

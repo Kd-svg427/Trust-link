@@ -58,7 +58,7 @@ async function initCartPage() {
         <div>
           ${items.map(item => `
             <div class="glass-card" style="padding:1.25rem;margin-bottom:1rem;display:flex;gap:1rem;align-items:center" data-cart-item="${item.product_id}">
-              <img src="${item.product.images?.[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200'}"
+              <img src="${sanitizeAttr(item.product.images?.[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200')}"
                    alt="${sanitizeAttr(item.product.title)}"
                    style="width:90px;height:90px;border-radius:var(--radius-md);object-fit:cover;cursor:pointer"
                    onclick="App.navigate('/product/${item.product_id}')">

@@ -6,7 +6,11 @@ function renderHeader() {
   const cartCount = Cart.getCount();
   const state = App.getState();
   const isLoggedIn = !!state.profile;
-  const dashLink = isLoggedIn ? (state.profile.role === 'vendor' ? '#/vendor' : '#/dashboard') : '#/login';
+  const dashLink = isLoggedIn
+    ? (state.profile.role === 'admin' ? '#/admin'
+      : state.profile.role === 'vendor' ? '#/vendor'
+      : '#/dashboard')
+    : '#/login';
   const dashLabel = isLoggedIn ? 'Account' : 'Login';
 
   return `
@@ -160,8 +164,9 @@ function updateHeaderAuth() {
 
   const state = App.getState();
   if (state.profile) {
-    const dashLink = state.profile.role === 'vendor' ? '#/vendor' : '#/dashboard';
-    const dashLabel = state.profile.role === 'vendor' ? 'My Store' : 'Dashboard';
+    const role = state.profile.role;
+    const dashLink = role === 'admin' ? '#/admin' : role === 'vendor' ? '#/vendor' : '#/dashboard';
+    const dashLabel = role === 'admin' ? 'Admin' : role === 'vendor' ? 'My Store' : 'Dashboard';
     section.innerHTML = `
       <a href="${dashLink}" class="nav-link" data-nav="dashboard">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ${dashLabel}

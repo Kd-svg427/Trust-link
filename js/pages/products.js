@@ -155,15 +155,18 @@ async function loadProducts() {
     // Render pagination
     const totalPages = Math.ceil(result.total / result.limit);
     if (pagination && totalPages > 1) {
-      let pagHtml = `<button class="page-btn" ${result.page <= 1 ? 'disabled' : ''} onclick="goToPage(${result.page - 1})">‹</button>`;
-      for (let i = 1; i <= totalPages; i++) {
-        if (totalPages > 7 && i > 3 && i < totalPages - 2 && Math.abs(i - result.page) > 1) {
-          if (i === 4) pagHtml += `<span style="color:var(--text-muted);padding:0 0.5rem">...</span>`;
-          continue;
-        }
-        pagHtml += `<button class="page-btn ${i === result.page ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      const current = result.page;
+      const visible = new Set([1, totalPages, current - 1, current, current + 1].filter(p => p >= 1 && p <= totalPages));
+      const ordered = [...visible].sort((a, b) => a - b);
+
+      let pagHtml = `<button class="page-btn" ${current <= 1 ? 'disabled' : ''} onclick="goToPage(${current - 1})">‹</button>`;
+      let prev = 0;
+      for (const p of ordered) {
+        if (prev && p - prev > 1) pagHtml += `<span class="page-ellipsis">…</span>`;
+        pagHtml += `<button class="page-btn ${p === current ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+        prev = p;
       }
-      pagHtml += `<button class="page-btn" ${result.page >= totalPages ? 'disabled' : ''} onclick="goToPage(${result.page + 1})">›</button>`;
+      pagHtml += `<button class="page-btn" ${current >= totalPages ? 'disabled' : ''} onclick="goToPage(${current + 1})">›</button>`;
       pagination.innerHTML = pagHtml;
     } else if (pagination) {
       pagination.innerHTML = '';

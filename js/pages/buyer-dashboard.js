@@ -201,7 +201,7 @@ async function showOrderDetail(orderId) {
       <h4 style="font-weight:700;margin-bottom:0.75rem">Items</h4>
       ${(order.order_items || []).map(item => `
         <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.75rem">
-          <img src="${item.products?.images?.[0] || 'icons/icon-192.png'}" style="width:44px;height:44px;border-radius:var(--radius-sm);object-fit:cover">
+          <img src="${sanitizeAttr(item.products?.images?.[0] || 'icons/icon-192.png')}" style="width:44px;height:44px;border-radius:var(--radius-sm);object-fit:cover">
           <div style="flex:1">
             <div style="font-weight:600;font-size:0.9rem">${sanitize(item.products?.title || 'Product')}</div>
             <div style="font-size:0.8rem;color:var(--text-muted)">Qty: ${item.quantity} × ₵${formatPrice(item.unit_price)}</div>

@@ -194,6 +194,11 @@ async function initLoginPage() {
   });
 
   if (window.lucide) lucide.createIcons();
+
+  // Deep-link: #/register should open the "Create Account" tab
+  if ((window.location.hash || '').includes('/register')) {
+    tabRegister?.click();
+  }
 }
 
 async function doLogin(email, password) {

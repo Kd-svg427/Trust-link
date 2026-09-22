@@ -18,7 +18,7 @@ async function renderVendorDashboardPage() {
         <!-- Sidebar -->
         <aside class="dashboard-sidebar" id="vendor-sidebar">
           <div style="margin-bottom:1.5rem;text-align:center">
-            <img src="${state.vendor?.logo_url || 'icons/icon-192.png'}" style="width:64px;height:64px;border-radius:var(--radius-md);object-fit:cover;margin-bottom:0.75rem">
+            <img src="${sanitizeAttr(state.vendor?.logo_url || 'icons/icon-192.png')}" style="width:64px;height:64px;border-radius:var(--radius-md);object-fit:cover;margin-bottom:0.75rem">
             <h3 style="font-size:1rem;font-weight:700">${sanitize(state.vendor?.store_name || 'My Store')}</h3>
             <div>${getStatusBadge(state.vendor?.approval_status || 'pending')}</div>
           </div>
@@ -196,7 +196,7 @@ async function renderVendorProducts(container, state) {
             <tbody>
               ${products.map(p => `
                 <tr>
-                  <td><img src="${p.images?.[0] || 'icons/icon-192.png'}" style="width:44px;height:44px;border-radius:var(--radius-sm);object-fit:cover"></td>
+                  <td><img src="${sanitizeAttr(p.images?.[0] || 'icons/icon-192.png')}" style="width:44px;height:44px;border-radius:var(--radius-sm);object-fit:cover"></td>
                   <td style="max-width:200px">
                     <div style="font-weight:600;font-size:0.9rem">${sanitize(p.title)}</div>
                     <div style="font-size:0.75rem;color:var(--text-muted)">${sanitize(p.categories?.name || '')}</div>
@@ -254,7 +254,7 @@ function showProductModal(product, categories, vendor) {
       </div>
       <div class="form-group">
         <label class="form-label">Description</label>
-        <textarea class="form-input" id="pm-desc" rows="3" placeholder="Describe your product...">${product?.description || ''}</textarea>
+        <textarea class="form-input" id="pm-desc" rows="3" placeholder="Describe your product...">${sanitize(product?.description || '')}</textarea>
         <button type="button" class="btn btn-ghost btn-sm" style="margin-top:0.5rem" onclick="generateAIDescription()">
           <i data-lucide="sparkles" class="w-4 h-4"></i> AI Generate Description
         </button>
@@ -436,7 +436,7 @@ async function renderVendorSettings(container, state) {
         </div>
         <div class="form-group">
           <label class="form-label">Store Description</label>
-          <textarea class="form-input" id="vs-desc" rows="3">${vendor.description || ''}</textarea>
+          <textarea class="form-input" id="vs-desc" rows="3">${sanitize(vendor.description || '')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">MoMo Number</label>
@@ -465,22 +465,42 @@ async function renderVendorSettings(container, state) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
 
+    const storeName = document.getElementById('vs-name').value.trim();
+    const description = document.getElementById('vs-desc').value.trim();
+    const momoNumber = document.getElementById('vs-momo').value.trim();
+    const whatsappNumber = document.getElementById('vs-whatsapp').value.trim();
+
     try {
+      // Create the vendor record first if it doesn't exist yet
+      // (e.g. the auto-created record at signup was deferred/failed).
+      let vendorRecord = vendor;
+      if (!vendorRecord?.id) {
+        vendorRecord = await Vendors.create({
+          profile_id: state.profile.id,
+          store_name: storeName || (state.profile.name + "'s Store"),
+          description,
+          momo_number: momoNumber,
+          whatsapp_number: whatsappNumber,
+          approval_status: 'pending'
+        });
+        App.setState({ ...App.getState(), vendor: vendorRecord });
+      }
+
       let logoUrl = document.getElementById('vs-logo').value.trim();
       const logoFile = document.getElementById('vs-logo-file')?.files?.[0];
       if (logoFile) {
-        logoUrl = await Storage.uploadVendorLogo(logoFile, vendor.id);
+        logoUrl = await Storage.uploadVendorLogo(logoFile, vendorRecord.id);
       }
 
       const updates = {
-        store_name: document.getElementById('vs-name').value.trim(),
-        description: document.getElementById('vs-desc').value.trim(),
-        momo_number: document.getElementById('vs-momo').value.trim(),
-        whatsapp_number: document.getElementById('vs-whatsapp').value.trim(),
+        store_name: storeName,
+        description,
+        momo_number: momoNumber,
+        whatsapp_number: whatsappNumber,
         logo_url: logoUrl
       };
 
-      const updated = await Vendors.update(vendor.id, updates);
+      const updated = await Vendors.update(vendorRecord.id, updates);
       App.setState({ ...App.getState(), vendor: updated });
       Toast.success('Store settings saved!');
     } catch (err) {

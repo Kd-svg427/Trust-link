@@ -16,7 +16,7 @@ function renderProductCard(product) {
   return `
     <div class="product-card" data-product-id="${product.id}" onclick="App.navigate('/product/${product.id}')">
       <div class="product-card-image">
-        <img src="${image}" alt="${sanitizeAttr(product.title)}" loading="lazy">
+        <img src="${sanitizeAttr(image)}" alt="${sanitizeAttr(product.title)}" loading="lazy">
         ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ''}
       </div>
       <div class="product-card-body">

@@ -47,13 +47,13 @@ async function initProductDetailPage(productId) {
         <!-- Image Gallery -->
         <div class="gallery animate-fade-in">
           <div class="gallery-main" id="gallery-main">
-            <img src="${images[0]}" alt="${sanitizeAttr(product.title)}" id="gallery-main-img">
+            <img src="${sanitizeAttr(images[0])}" alt="${sanitizeAttr(product.title)}" id="gallery-main-img">
           </div>
           ${images.length > 1 ? `
             <div class="gallery-thumbnails">
               ${images.map((img, i) => `
-                <div class="gallery-thumb ${i === 0 ? 'active' : ''}" data-index="${i}" onclick="switchGalleryImage('${img}', this)">
-                  <img src="${img}" alt="Thumbnail ${i + 1}" loading="lazy">
+                <div class="gallery-thumb ${i === 0 ? 'active' : ''}" data-index="${i}" data-src="${sanitizeAttr(img)}">
+                  <img src="${sanitizeAttr(img)}" alt="Thumbnail ${i + 1}" loading="lazy">
                 </div>
               `).join('')}
             </div>
@@ -111,7 +111,7 @@ async function initProductDetailPage(productId) {
           ${vendor ? `
             <div class="glass-card" style="padding:1.25rem;margin-bottom:1.5rem">
               <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
-                <img src="${vendor.logo_url || 'icons/icon-192.png'}" alt="${sanitizeAttr(vendor.store_name)}" style="width:48px;height:48px;border-radius:var(--radius-md);object-fit:cover">
+                <img src="${sanitizeAttr(vendor.logo_url || 'icons/icon-192.png')}" alt="${sanitizeAttr(vendor.store_name)}" style="width:48px;height:48px;border-radius:var(--radius-md);object-fit:cover">
                 <div>
                   <div style="font-weight:700">${sanitize(vendor.store_name)}</div>
                   <div style="font-size:0.8rem;color:var(--text-muted)">Verified Vendor ✓</div>
@@ -207,10 +207,12 @@ async function initProductDetailPage(productId) {
 
     if (window.lucide) lucide.createIcons();
 
-    // Responsive grid fix for mobile
-    const style = document.createElement('style');
-    style.textContent = `@media(max-width:768px){.product-detail-grid{grid-template-columns:1fr !important;gap:1.5rem !important}}`;
-    document.head.appendChild(style);
+    // Gallery thumbnail switching (event listeners — avoids inline onclick XSS)
+    container.querySelectorAll('.gallery-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        switchGalleryImage(thumb.dataset.src, thumb);
+      });
+    });
 
   } catch (err) {
     container.innerHTML = `<div class="empty-state"><h3>Error loading product</h3><p>${sanitize(err.message)}</p><a href="#/products" class="btn btn-primary">Browse Products</a></div>`;

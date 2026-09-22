@@ -3,9 +3,8 @@
 // Cache-first for static assets, network-first for API
 // ============================================
 
-const CACHE_NAME = 'trustlink-v9';
-const STATIC_CACHE = 'trustlink-static-v9';
-const DATA_CACHE = 'trustlink-data-v9';
+const STATIC_CACHE = 'trustlink-static-v10';
+const DATA_CACHE = 'trustlink-data-v10';
 
 // Static assets to pre-cache (app shell)
 const STATIC_ASSETS = [
@@ -15,13 +14,11 @@ const STATIC_ASSETS = [
   '/css/styles.css',
   '/js/app.js',
   '/js/supabase.js',
-  '/js/auth.js',
   '/js/components/header.js',
   '/js/components/footer.js',
   '/js/components/product-card.js',
   '/js/components/modal.js',
   '/js/components/toast.js',
-  '/js/components/modal.js',
   '/js/push.js',
   '/js/pages/home.js',
   '/js/pages/products.js',
@@ -33,6 +30,8 @@ const STATIC_ASSETS = [
   '/js/pages/buyer-dashboard.js',
   '/js/pages/vendor-dashboard.js',
   '/js/pages/admin-dashboard.js',
+  '/js/pages/privacy.js',
+  '/js/pages/terms.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/manifest.json'
