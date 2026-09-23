@@ -72,12 +72,18 @@ async function initProductDetailPage(productId) {
           </div>
 
           <!-- Price -->
-          <div style="display:flex;align-items:baseline;gap:0.75rem;margin-bottom:1.5rem">
-            <span style="font-size:2rem;font-weight:900;color:var(--primary-light)">₵${formatPrice(product.price)}</span>
+          <div style="display:flex;align-items:baseline;gap:0.75rem;margin-bottom:1rem">
+            <span style="font-size:2rem;font-weight:900;color:var(--primary-light)">GH₵ ${formatPrice(product.price)}</span>
             ${product.compare_at_price ? `
-              <span style="font-size:1.1rem;color:var(--text-muted);text-decoration:line-through">₵${formatPrice(product.compare_at_price)}</span>
+              <span style="font-size:1.1rem;color:var(--text-muted);text-decoration:line-through">GH₵ ${formatPrice(product.compare_at_price)}</span>
               <span class="badge badge-error">-${discount}% OFF</span>
             ` : ''}
+          </div>
+
+          <!-- Escrow Badge -->
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;padding:0.625rem 1rem;background:rgba(76,175,80,0.08);border:1px solid rgba(76,175,80,0.2);border-radius:var(--radius-md)">
+            <i data-lucide="shield-check" class="w-4 h-4" style="color:var(--primary-light)"></i>
+            <span style="font-size:0.8rem;color:var(--primary-light);font-weight:600">Bank of Ghana Protected: MoMo funds held in escrow until you inspect your package.</span>
           </div>
 
           <!-- Description -->
@@ -92,7 +98,7 @@ async function initProductDetailPage(productId) {
 
           <!-- Quantity + Add to Cart -->
           ${product.stock_quantity > 0 ? `
-            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:2rem;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap">
               <div class="qty-selector">
                 <button class="qty-btn" onclick="updateDetailQty(-1)">−</button>
                 <span class="qty-value" id="detail-qty">1</span>
@@ -101,10 +107,10 @@ async function initProductDetailPage(productId) {
               <button class="btn btn-primary btn-lg" id="add-to-cart-btn" onclick="addDetailToCart('${product.id}')">
                 <i data-lucide="shopping-cart" class="w-5 h-5"></i> Add to Cart
               </button>
-              <button class="btn btn-outline btn-lg" onclick="addDetailToCart('${product.id}');App.navigate('/checkout')">
-                Buy Now
-              </button>
             </div>
+            <button class="btn btn-gold btn-lg" style="width:100%;margin-bottom:1.5rem" onclick="addDetailToCart('${product.id}');App.navigate('/checkout')">
+              <i data-lucide="banknote" class="w-5 h-5"></i> Buy via MoMo Escrow
+            </button>
           ` : ''}
 
           <!-- Vendor Card -->

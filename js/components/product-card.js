@@ -2,7 +2,7 @@
 // TrustLink — Product Card Component
 // ============================================
 
-function renderProductCard(product) {
+function renderProductCard(product, options = {}) {
   const discount = product.compare_at_price
     ? Math.round((1 - product.price / product.compare_at_price) * 100)
     : 0;
@@ -13,6 +13,11 @@ function renderProductCard(product) {
 
   const vendorName = product.vendors?.store_name || 'TrustLink Vendor';
 
+  // Flash deal progress (simulated based on stock)
+  const showProgress = options.showProgress || false;
+  const totalStock = product.stock_quantity + Math.floor(Math.random() * 50 + 10);
+  const claimed = Math.round(((totalStock - product.stock_quantity) / totalStock) * 100);
+
   return `
     <div class="product-card" data-product-id="${product.id}" onclick="App.navigate('/product/${product.id}')">
       <div class="product-card-image">
@@ -20,21 +25,36 @@ function renderProductCard(product) {
         ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ''}
       </div>
       <div class="product-card-body">
-        <div class="product-card-vendor">${sanitize(vendorName)}</div>
+        <div class="product-card-vendor">
+          <span class="verified-dot"></span>
+          ${sanitize(vendorName)}
+        </div>
         <h3 class="product-card-title">${sanitize(product.title)}</h3>
         <div class="product-card-price">
-          <span class="price-current">₵${formatPrice(product.price)}</span>
-          ${product.compare_at_price ? `<span class="price-original">₵${formatPrice(product.compare_at_price)}</span>` : ''}
+          <span class="price-currency">GH₵</span>
+          <span class="price-current">${formatPrice(product.price)}</span>
+          ${product.compare_at_price ? `<span class="price-original">GH₵${formatPrice(product.compare_at_price)}</span>` : ''}
         </div>
-        ${product.stock_quantity <= 5 && product.stock_quantity > 0
+        ${showProgress && product.stock_quantity > 0 ? `
+          <div class="deal-progress">
+            <div class="deal-progress-bar">
+              <div class="deal-progress-fill" style="width:${claimed}%"></div>
+            </div>
+            <div class="deal-progress-text">
+              <span>${claimed}% claimed</span>
+              <span>${product.stock_quantity} left</span>
+            </div>
+          </div>
+        ` : ''}
+        ${product.stock_quantity <= 5 && product.stock_quantity > 0 && !showProgress
           ? `<div style="font-size:0.75rem;color:var(--warning);margin-top:0.375rem;font-weight:600">Only ${product.stock_quantity} left</div>`
           : ''}
         ${product.stock_quantity === 0
           ? `<div style="font-size:0.75rem;color:var(--error);margin-top:0.375rem;font-weight:600">Out of stock</div>`
           : ''}
         ${product.stock_quantity > 0
-          ? `<button class="btn btn-primary btn-sm" style="width:100%;margin-top:0.75rem" onclick="event.stopPropagation(); addToCartFromCard('${product.id}')">
-              Add to Cart
+          ? `<button class="add-btn" onclick="event.stopPropagation(); addToCartFromCard('${product.id}')">
+              <i data-lucide="shopping-cart" class="w-4 h-4"></i> Add
             </button>`
           : ''}
       </div>
@@ -106,7 +126,10 @@ function getStatusBadge(status) {
     suspended: 'badge-error',
     paid: 'badge-success',
     failed: 'badge-error',
-    refunded: 'badge-warning'
+    refunded: 'badge-warning',
+    buyer: 'badge-info',
+    vendor: 'badge-gold',
+    admin: 'badge-error'
   };
   return `<span class="badge ${map[status] || 'badge-info'}">${status}</span>`;
 }
@@ -114,6 +137,7 @@ function getStatusBadge(status) {
 function getPaymentMethodLabel(method) {
   const map = {
     mtn_momo: 'MTN MoMo',
+    telecash: 'Telecash Cash',
     vodafone_cash: 'Vodafone Cash',
     airteltigo_money: 'AirtelTigo Money',
     bank_card: 'Bank Card'
@@ -141,4 +165,26 @@ function debounce(fn, ms = 300) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+}
+
+// Countdown timer utility
+function startCountdown(targetDate, elementId) {
+  function update() {
+    const now = new Date().getTime();
+    const distance = targetDate - now;
+    if (distance < 0) return;
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.innerHTML = `
+        <span class="countdown-box">${String(hours).padStart(2, '0')}</span>:
+        <span class="countdown-box">${String(minutes).padStart(2, '0')}</span>:
+        <span class="countdown-box">${String(seconds).padStart(2, '0')}</span>
+      `;
+    }
+  }
+  update();
+  return setInterval(update, 1000);
 }

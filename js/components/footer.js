@@ -11,12 +11,19 @@ function renderFooter() {
             <img src="icons/icon-192.png" alt="TrustLink" width="32" height="32" style="border-radius:6px">
             <span style="font-size:1.25rem;font-weight:800;background:linear-gradient(135deg,var(--primary-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent">TrustLink</span>
           </div>
-          <p>Ghana's most trusted e-commerce marketplace. Shop from verified vendors with confidence. Fast delivery, secure payments, and quality guaranteed.</p>
+          <p>Ghana's most trusted e-commerce marketplace. Shop from verified vendors with confidence. Escrow-protected payments, fast delivery across Accra & beyond.</p>
           <div class="footer-social" style="margin-top:1rem">
             <a href="#" aria-label="Facebook"><i data-lucide="facebook" class="w-4 h-4"></i></a>
             <a href="#" aria-label="Twitter"><i data-lucide="twitter" class="w-4 h-4"></i></a>
             <a href="#" aria-label="Instagram"><i data-lucide="instagram" class="w-4 h-4"></i></a>
             <a href="#" aria-label="YouTube"><i data-lucide="youtube" class="w-4 h-4"></i></a>
+          </div>
+          <!-- Ghana Local Payments Accepted -->
+          <div class="footer-payments">
+            <span class="footer-payment-badge">💛 MTN MoMo</span>
+            <span class="footer-payment-badge">🔴 Telecash</span>
+            <span class="footer-payment-badge">💙 AirtelTigo</span>
+            <span class="footer-payment-badge">💳 Bank Cards</span>
           </div>
         </div>
 
@@ -33,10 +40,12 @@ function renderFooter() {
         <div>
           <h4 class="footer-heading">Categories</h4>
           <ul class="footer-links" id="footer-categories">
-            <li><a href="#/products?category=electronics">Electronics</a></li>
-            <li><a href="#/products?category=fashion">Fashion</a></li>
-            <li><a href="#/products?category=beauty-health">Beauty & Health</a></li>
+            <li><a href="#/products?category=electronics">Tech & Gadgets</a></li>
+            <li><a href="#/products?category=fashion">Fashion & Kente</a></li>
+            <li><a href="#/products?category=beauty-health">Beauty & Shea</a></li>
             <li><a href="#/products?category=phones-tablets">Phones & Tablets</a></li>
+            <li><a href="#/products?category=groceries">Fresh Groceries</a></li>
+            <li><a href="#/products?category=solar">Solar & Power</a></li>
           </ul>
         </div>
 
@@ -54,11 +63,12 @@ function renderFooter() {
       </div>
 
       <div class="footer-bottom">
-        <p>© ${new Date().getFullYear()} TrustLink. All rights reserved.</p>
-        <div style="display:flex;gap:1.5rem;font-size:0.8rem">
+        <p>© ${new Date().getFullYear()} TrustLink Ghana. Bank of Ghana compliant escrow infrastructure.</p>
+        <div style="display:flex;gap:1.5rem;font-size:0.8rem;flex-wrap:wrap">
           <a href="#/privacy" style="color:var(--text-muted)">Privacy Policy</a>
           <a href="#/terms" style="color:var(--text-muted)">Terms of Service</a>
-          <a href="https://wa.me/233551234567" target="_blank" rel="noopener" style="color:var(--text-muted)">Contact via WhatsApp</a>
+          <a href="#/terms" style="color:var(--text-muted)">MoMo Escrow Terms</a>
+          <a href="https://wa.me/233551234567" target="_blank" rel="noopener" style="color:var(--text-muted)">WhatsApp Support</a>
         </div>
       </div>
     </footer>

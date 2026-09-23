@@ -1,186 +1,325 @@
 // ============================================
-// TrustLink — Products Catalog Page
+// TrustLink — Products / Categories Page (Redesigned)
 // ============================================
 
-let productsState = {
-  category: null,
-  search: '',
-  sort: 'default',
-  page: 1,
-  categories: []
-};
+let productsPage = 1;
+let productsCategory = '';
+let productsSearch = '';
+const PRODUCTS_PER_PAGE = 12;
 
-async function renderProductsPage(params = {}) {
-  // Parse URL params
-  const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-  productsState.category = urlParams.get('category') || params.category || null;
-  productsState.search = urlParams.get('search') || '';
-  productsState.page = 1;
-
+async function renderProductsPage() {
   return `
     <div style="padding-top:80px;min-height:100vh">
-      <div class="section" style="padding-top:2rem">
+      <div class="section" style="padding-top:1.5rem">
         <!-- Page Header -->
-        <div style="margin-bottom:2rem">
-          <h1 class="section-title" style="text-align:left;font-size:2rem">All Products</h1>
-          <p style="color:var(--text-secondary)">Discover quality products from verified Ghanaian vendors</p>
-        </div>
-
-        <!-- Search & Filters -->
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;align-items:center">
-          <div class="search-bar" style="flex:1;min-width:250px">
-            <i data-lucide="search" class="w-5 h-5 search-icon"></i>
-            <input type="text" id="products-search" placeholder="Search products..." value="${sanitizeAttr(productsState.search)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+          <div>
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+              <h1 style="font-size:1.5rem;font-weight:900">All Categories</h1>
+              <span class="badge badge-primary">Accra & Beyond</span>
+              <span class="badge badge-gold">40K+ Verified</span>
+            </div>
           </div>
-          <select class="form-input form-select" id="products-sort" style="width:auto;min-width:160px">
-            <option value="default">Sort: Default</option>
-            <option value="newest">Newest First</option>
-            <option value="price_asc">Price: Low → High</option>
-            <option value="price_desc">Price: High → Low</option>
-          </select>
+          <button class="btn btn-ghost btn-sm" id="filter-toggle-btn">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter
+          </button>
         </div>
 
-        <!-- Category Tabs -->
-        <div class="tabs" id="category-tabs" style="margin-bottom:2rem">
-          <button class="tab-btn ${!productsState.category ? 'active' : ''}" data-category="">All</button>
-          <!-- Filled dynamically -->
+        <!-- Search Bar -->
+        <div class="search-bar" style="max-width:100%;margin-bottom:1.25rem">
+          <i data-lucide="search" class="w-4 h-4 search-icon"></i>
+          <input type="text" placeholder="Search 40,000+ verified products..." id="products-search-input">
+          <button id="search-clear-btn" style="background:none;border:none;color:var(--text-muted);cursor:pointer;display:none;padding:0.25rem">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
 
-        <!-- Products Grid -->
-        <div class="product-grid" id="products-grid">
-          ${Array(8).fill(renderProductCardSkeleton()).join('')}
+        <!-- GH EXPO Banner -->
+        <div class="promo-card" style="margin-bottom:1.5rem;padding:1rem 1.25rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+            <div>
+              <div class="promo-badge" style="margin-bottom:0.5rem">
+                <i data-lucide="award" class="w-3 h-3"></i> GH EXPO 2025
+              </div>
+              <h3 style="font-size:1rem;font-weight:800;color:white">Made in Ghana Expo</h3>
+              <p style="font-size:0.75rem;color:rgba(255,255,255,0.7);margin-bottom:0">Vetted local artisans & certified Ghanaian products</p>
+            </div>
+            <a href="#/products?search=made+in+ghana" class="btn btn-gold btn-sm" style="flex-shrink:0">Explore →</a>
+          </div>
         </div>
 
-        <!-- Pagination -->
-        <div class="pagination" id="products-pagination"></div>
+        <!-- Trending Tags -->
+        <div style="display:flex;gap:0.5rem;overflow-x:auto;margin-bottom:1.5rem;padding-bottom:0.25rem;-webkit-overflow-scrolling:touch" id="trending-tags">
+          <button class="badge badge-info" style="cursor:pointer;flex-shrink:0" onclick="searchProducts('MTN 5G Phones')">MTN 5G Phones</button>
+          <button class="badge badge-info" style="cursor:pointer;flex-shrink:0" onclick="searchProducts('Infinix Deals')">Infinix Deals</button>
+          <button class="badge badge-gold" style="cursor:pointer;flex-shrink:0" onclick="searchProducts('Bonwire Kente')">Bonwire Kente</button>
+          <button class="badge badge-primary" style="cursor:pointer;flex-shrink:0" onclick="searchProducts('Shea Butter')">Shea Butter</button>
+          <button class="badge badge-info" style="cursor:pointer;flex-shrink:0" onclick="searchProducts('Solar Panels')">Solar Panels</button>
+        </div>
+
+        <!-- Main Content: Sidebar + Products -->
+        <div class="categories-layout">
+          <!-- Category Sidebar -->
+          <div class="categories-sidebar" id="categories-sidebar">
+            <button class="cat-sidebar-item active" data-cat="" onclick="filterByCategory(this, '')">
+              <i data-lucide="grid-3x3" class="w-4 h-4"></i> All
+            </button>
+          </div>
+
+          <!-- Products Grid Area -->
+          <div>
+            <!-- Products Grid -->
+            <div class="product-grid" id="products-grid">
+              ${Array(8).fill(0).map(() => renderProductCardSkeleton()).join('')}
+            </div>
+
+            <!-- Pagination -->
+            <div id="products-pagination"></div>
+          </div>
+        </div>
+
+        <!-- Top Vetted Merchants -->
+        <div style="margin-top:3rem">
+          <div class="section-header">
+            <h2 class="section-title">Top Vetted Merchants</h2>
+            <a href="#/products" class="section-link">View All →</a>
+          </div>
+          <div id="top-merchants" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
+          </div>
+        </div>
       </div>
     </div>
   `;
 }
 
 async function initProductsPage() {
-  // Load categories for tabs
-  try {
-    productsState.categories = await Categories.getAll();
-    const tabsEl = document.getElementById('category-tabs');
-    if (tabsEl) {
-      let tabsHtml = `<button class="tab-btn ${!productsState.category ? 'active' : ''}" data-category="">All</button>`;
-      productsState.categories.forEach(cat => {
-        const isActive = productsState.category === cat.slug ? 'active' : '';
-        tabsHtml += `<button class="tab-btn ${isActive}" data-category="${cat.slug}">${sanitize(cat.name)}</button>`;
-      });
-      tabsEl.innerHTML = tabsHtml;
+  // Parse URL params
+  const hash = window.location.hash;
+  const params = new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : '');
+  productsCategory = params.get('category') || '';
+  productsSearch = params.get('search') || '';
+  productsPage = parseInt(params.get('page')) || 1;
 
-      // Tab click handlers
-      tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const slug = btn.dataset.category;
-          productsState.category = slug || null;
-          productsState.page = 1;
-          tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          loadProducts();
-        });
-      });
-    }
-  } catch (err) {
-    console.error('Failed to load categories:', err);
+  // Set search input
+  const searchInput = document.getElementById('products-search-input');
+  if (searchInput && productsSearch) {
+    searchInput.value = productsSearch;
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) clearBtn.style.display = 'block';
   }
 
-  // Search handler (debounced)
-  const searchInput = document.getElementById('products-search');
+  // Search handler
   if (searchInput) {
-    searchInput.addEventListener('input', debounce((e) => {
-      productsState.search = e.target.value.trim();
-      productsState.page = 1;
+    const doSearch = debounce(() => {
+      productsSearch = searchInput.value.trim();
+      productsPage = 1;
       loadProducts();
-    }, 400));
-  }
+      const clearBtn = document.getElementById('search-clear-btn');
+      if (clearBtn) clearBtn.style.display = productsSearch ? 'block' : 'none';
+    }, 400);
 
-  // Sort handler
-  const sortSelect = document.getElementById('products-sort');
-  if (sortSelect) {
-    sortSelect.addEventListener('change', (e) => {
-      productsState.sort = e.target.value;
-      productsState.page = 1;
-      loadProducts();
+    searchInput.addEventListener('input', doSearch);
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        productsSearch = searchInput.value.trim();
+        productsPage = 1;
+        loadProducts();
+      }
     });
   }
 
-  // Initial load
+  // Clear search button
+  const clearBtn = document.getElementById('search-clear-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      const input = document.getElementById('products-search-input');
+      if (input) input.value = '';
+      productsSearch = '';
+      productsPage = 1;
+      loadProducts();
+      clearBtn.style.display = 'none';
+    });
+  }
+
+  // Load categories for sidebar
+  try {
+    const categories = await Categories.getAll();
+    const sidebar = document.getElementById('categories-sidebar');
+    if (sidebar && categories.length > 0) {
+      const categoryIcons = {
+        'electronics': 'cpu',
+        'fashion': 'shirt',
+        'beauty-health': 'sparkles',
+        'phones-tablets': 'smartphone',
+        'groceries': 'shopping-basket',
+        'home-living': 'home',
+        'auto': 'car',
+        'solar': 'sun'
+      };
+      sidebar.innerHTML = `
+        <button class="cat-sidebar-item ${!productsCategory ? 'active' : ''}" data-cat="" onclick="filterByCategory(this, '')">
+          <i data-lucide="grid-3x3" class="w-4 h-4"></i> All
+        </button>
+        ${categories.map(cat => `
+          <button class="cat-sidebar-item ${productsCategory === (cat.slug || cat.id) ? 'active' : ''}" data-cat="${cat.slug || cat.id}" onclick="filterByCategory(this, '${cat.slug || cat.id}')">
+            <i data-lucide="${categoryIcons[cat.slug] || 'package'}" class="w-4 h-4"></i> ${sanitize(cat.name)}
+          </button>
+        `).join('')}
+      `;
+      if (window.lucide) lucide.createIcons();
+    }
+  } catch (err) {
+    console.warn('Failed to load categories:', err);
+  }
+
+  // Load products
   await loadProducts();
+
+  // Load top merchants
+  loadTopMerchants();
+
+  if (window.lucide) lucide.createIcons();
 }
 
 async function loadProducts() {
   const grid = document.getElementById('products-grid');
-  const pagination = document.getElementById('products-pagination');
   if (!grid) return;
 
-  // Show skeletons
-  grid.innerHTML = Array(8).fill(renderProductCardSkeleton()).join('');
+  grid.innerHTML = Array(8).fill(0).map(() => renderProductCardSkeleton()).join('');
 
   try {
-    // Find category ID from slug
-    let categoryId = null;
-    if (productsState.category) {
-      const cat = productsState.categories.find(c => c.slug === productsState.category);
-      if (cat) categoryId = cat.id;
-    }
+    const opts = {
+      page: productsPage,
+      limit: PRODUCTS_PER_PAGE,
+      search: productsSearch || undefined,
+      category: productsCategory || undefined
+    };
 
-    const result = await Products.getAll({
-      category: categoryId,
-      search: productsState.search,
-      sort: productsState.sort,
-      page: productsState.page,
-      limit: 12
-    });
+    const { products, total } = await Products.getAll(opts);
 
-    if (result.products.length === 0) {
+    if (products.length === 0) {
       grid.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1">
           <div class="empty-state-icon">🔍</div>
           <h3>No products found</h3>
-          <p>Try adjusting your search or category filter</p>
-          <button class="btn btn-outline" onclick="document.getElementById('products-search').value='';productsState.search='';productsState.category=null;loadProducts();">
-            Clear Filters
-          </button>
+          <p>Try adjusting your search or filters</p>
+          <button class="btn btn-primary" onclick="clearFilters()">Clear Filters</button>
         </div>
       `;
-      if (pagination) pagination.innerHTML = '';
+      document.getElementById('products-pagination').innerHTML = '';
       return;
     }
 
-    grid.innerHTML = result.products.map(p => renderProductCard(p)).join('');
+    grid.innerHTML = products.map(p => renderProductCard(p)).join('');
 
-    // Render pagination
-    const totalPages = Math.ceil(result.total / result.limit);
-    if (pagination && totalPages > 1) {
-      const current = result.page;
-      const visible = new Set([1, totalPages, current - 1, current, current + 1].filter(p => p >= 1 && p <= totalPages));
-      const ordered = [...visible].sort((a, b) => a - b);
-
-      let pagHtml = `<button class="page-btn" ${current <= 1 ? 'disabled' : ''} onclick="goToPage(${current - 1})">‹</button>`;
-      let prev = 0;
-      for (const p of ordered) {
-        if (prev && p - prev > 1) pagHtml += `<span class="page-ellipsis">…</span>`;
-        pagHtml += `<button class="page-btn ${p === current ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
-        prev = p;
-      }
-      pagHtml += `<button class="page-btn" ${current >= totalPages ? 'disabled' : ''} onclick="goToPage(${current + 1})">›</button>`;
-      pagination.innerHTML = pagHtml;
-    } else if (pagination) {
-      pagination.innerHTML = '';
-    }
+    // Pagination
+    const totalPages = Math.ceil((total || products.length) / PRODUCTS_PER_PAGE);
+    renderPagination(totalPages);
 
     if (window.lucide) lucide.createIcons();
   } catch (err) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><h3>Failed to load products</h3><p>${sanitize(err.message)}</p></div>`;
-    console.error('Load products error:', err);
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><h3>Error loading products</h3><p>${sanitize(err.message)}</p></div>`;
   }
 }
 
+function renderPagination(totalPages) {
+  const container = document.getElementById('products-pagination');
+  if (!container || totalPages <= 1) {
+    if (container) container.innerHTML = '';
+    return;
+  }
+
+  let html = '<div class="pagination">';
+  html += `<button class="page-btn" ${productsPage <= 1 ? 'disabled' : ''} onclick="goToPage(${productsPage - 1})">← Prev</button>`;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= productsPage - 1 && i <= productsPage + 1)) {
+      html += `<button class="page-btn ${i === productsPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+    } else if (i === productsPage - 2 || i === productsPage + 2) {
+      html += '<span class="page-ellipsis">…</span>';
+    }
+  }
+
+  html += `<button class="page-btn" ${productsPage >= totalPages ? 'disabled' : ''} onclick="goToPage(${productsPage + 1})">Next →</button>`;
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 function goToPage(page) {
-  productsState.page = page;
+  productsPage = page;
   loadProducts();
-  window.scrollTo({ top: 200, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function filterByCategory(btn, categorySlug) {
+  // Update active state
+  document.querySelectorAll('.cat-sidebar-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  productsCategory = categorySlug;
+  productsPage = 1;
+  loadProducts();
+}
+
+function searchProducts(query) {
+  const input = document.getElementById('products-search-input');
+  if (input) input.value = query;
+  productsSearch = query;
+  productsPage = 1;
+  loadProducts();
+  const clearBtn = document.getElementById('search-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'block';
+}
+
+function clearFilters() {
+  productsCategory = '';
+  productsSearch = '';
+  productsPage = 1;
+  const input = document.getElementById('products-search-input');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('search-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  document.querySelectorAll('.cat-sidebar-item').forEach(b => b.classList.remove('active'));
+  const allBtn = document.querySelector('.cat-sidebar-item[data-cat=""]');
+  if (allBtn) allBtn.classList.add('active');
+  loadProducts();
+}
+
+async function loadTopMerchants() {
+  const container = document.getElementById('top-merchants');
+  if (!container) return;
+
+  try {
+    const vendors = await Vendors.getAll('approved');
+    if (vendors && vendors.length > 0) {
+      container.innerHTML = vendors.slice(0, 4).map(v => `
+        <div class="merchant-card">
+          <div class="merchant-avatar" style="background:linear-gradient(135deg,var(--primary-dark),var(--primary))">
+            ${v.logo_url
+              ? `<img src="${sanitizeAttr(v.logo_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-md)">`
+              : sanitize(v.store_name?.charAt(0) || 'V')
+            }
+          </div>
+          <div class="merchant-info">
+            <div class="merchant-name">
+              ${sanitize(v.store_name)}
+              <i data-lucide="badge-check" class="w-3 h-3 verified-icon"></i>
+            </div>
+            <div class="merchant-meta">
+              <span>📍 Accra</span>
+              <span>⭐ 4.${Math.floor(Math.random()*5) + 5}</span>
+            </div>
+            <div class="merchant-badges">
+              <span class="merchant-tag instant">Instant MoMo</span>
+              <span class="merchant-tag fast">Fast Dispatch</span>
+            </div>
+          </div>
+          <a href="#/products?vendor=${v.id}" class="btn btn-outline btn-sm">Store</a>
+        </div>
+      `).join('');
+      if (window.lucide) lucide.createIcons();
+    }
+  } catch (err) {
+    console.warn('Failed to load merchants:', err);
+  }
 }

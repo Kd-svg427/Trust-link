@@ -1,14 +1,14 @@
 // ============================================
-// TrustLink — Cart Page
+// TrustLink — Cart Page (Redesigned)
 // ============================================
+
+let selectedPaymentMethod = 'mtn_momo';
+let appliedVoucher = null;
 
 async function renderCartPage() {
   return `
     <div style="padding-top:80px;min-height:100vh">
-      <div class="section" style="padding-top:2rem">
-        <h1 class="section-title" style="text-align:left;font-size:2rem;margin-bottom:2rem">
-          <i data-lucide="shopping-cart" class="w-7 h-7" style="display:inline;vertical-align:middle"></i> Your Cart
-        </h1>
+      <div class="section" style="padding-top:1.5rem">
         <div id="cart-content">
           <div class="page-loader"><div class="loader"></div></div>
         </div>
@@ -21,150 +21,265 @@ async function initCartPage() {
   const container = document.getElementById('cart-content');
   if (!container) return;
 
-  const cartItems = Cart.get();
-  if (cartItems.length === 0) {
+  const items = Cart.get();
+
+  if (items.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
+      <div class="empty-state animate-fade-in-up">
         <div class="empty-state-icon">🛒</div>
         <h3>Your cart is empty</h3>
-        <p>Looks like you haven't added any products yet</p>
-        <a href="#/products" class="btn btn-primary btn-lg"><i data-lucide="shopping-bag" class="w-5 h-5"></i> Start Shopping</a>
+        <p>Browse our categories and add items you love</p>
+        <a href="#/products" class="btn btn-primary btn-lg">
+          <i data-lucide="shopping-bag" class="w-5 h-5"></i> Start Shopping
+        </a>
       </div>
     `;
     if (window.lucide) lucide.createIcons();
     return;
   }
 
+  // Load product details for cart items
   try {
-    const items = await Cart.getItemsWithProducts();
-    if (items.length === 0) {
-      Cart.clear();
+    const cartWithProducts = await Cart.getItemsWithProducts();
+    const cartProducts = cartWithProducts;
+
+    if (cartProducts.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🛒</div>
-          <h3>Your cart is empty</h3>
-          <p>Products may have been removed</p>
-          <a href="#/products" class="btn btn-primary btn-lg">Start Shopping</a>
+          <h3>Cart items unavailable</h3>
+          <p>The products in your cart may have been removed</p>
+          <a href="#/products" class="btn btn-primary">Browse Products</a>
         </div>
       `;
       return;
     }
 
-    const subtotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    const subtotal = cartProducts.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    const deliveryThreshold = 500;
+    const deliveryFee = subtotal >= deliveryThreshold ? 0 : 25;
+    const shippingProgress = Math.min((subtotal / deliveryThreshold) * 100, 100);
+    const remaining = Math.max(deliveryThreshold - subtotal, 0);
+    const voucherDiscount = appliedVoucher ? 100 : 0;
+    const buyerProtection = 5;
+    const total = subtotal - voucherDiscount + deliveryFee + buyerProtection;
 
     container.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 360px;gap:2rem;align-items:start" class="cart-layout">
-        <!-- Cart Items -->
-        <div>
-          ${items.map(item => `
-            <div class="glass-card" style="padding:1.25rem;margin-bottom:1rem;display:flex;gap:1rem;align-items:center" data-cart-item="${item.product_id}">
-              <img src="${sanitizeAttr(item.product.images?.[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200')}"
-                   alt="${sanitizeAttr(item.product.title)}"
-                   style="width:90px;height:90px;border-radius:var(--radius-md);object-fit:cover;cursor:pointer"
-                   onclick="App.navigate('/product/${item.product_id}')">
-              <div style="flex:1;min-width:0">
-                <h3 style="font-weight:600;font-size:0.95rem;margin-bottom:0.25rem;cursor:pointer" onclick="App.navigate('/product/${item.product_id}')">${sanitize(item.product.title)}</h3>
-                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">${sanitize(item.product.vendors?.store_name || '')}</div>
-                <div style="font-size:1.1rem;font-weight:800;color:var(--primary-light)">₵${formatPrice(item.product.price)}</div>
-              </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem">
-                <div class="qty-selector">
-                  <button class="qty-btn" onclick="updateCartItemQty('${item.product_id}', ${item.quantity - 1})">−</button>
-                  <span class="qty-value">${item.quantity}</span>
-                  <button class="qty-btn" onclick="updateCartItemQty('${item.product_id}', ${item.quantity + 1})">+</button>
-                </div>
-                <div style="font-size:0.85rem;font-weight:700;color:var(--text-secondary)">₵${formatPrice(item.product.price * item.quantity)}</div>
-              </div>
-              <button class="btn-icon" onclick="removeCartItem('${item.product_id}')" title="Remove" style="color:var(--error)">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
-            </div>
-          `).join('')}
-
-          <button class="btn btn-ghost btn-sm" onclick="clearEntireCart()" style="color:var(--error);margin-top:0.5rem">
-            <i data-lucide="trash" class="w-4 h-4"></i> Clear Cart
+      <div class="animate-fade-in-up">
+        <!-- Cart Header -->
+        <div class="cart-header-bar">
+          <h1>Shopping Cart (${cartProducts.reduce((s, i) => s + i.quantity, 0)} items)</h1>
+          <button class="btn btn-ghost btn-sm" onclick="clearCartConfirm()">
+            <i data-lucide="trash-2" class="w-4 h-4"></i> Clear
           </button>
         </div>
 
-        <!-- Order Summary -->
-        <div class="glass-card" style="padding:1.5rem;position:sticky;top:80px">
-          <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1.25rem">Order Summary</h3>
-          <div style="display:flex;justify-content:space-between;margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-secondary)">
-            <span>Subtotal (${items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-            <span>₵${formatPrice(subtotal)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-secondary)">
-            <span>Delivery</span>
-            <span style="color:var(--success)">Free</span>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border-color);margin:1rem 0">
-          <div style="display:flex;justify-content:space-between;margin-bottom:1.5rem">
-            <span style="font-weight:700;font-size:1.1rem">Total</span>
-            <span style="font-weight:900;font-size:1.25rem;color:var(--primary-light)">₵${formatPrice(subtotal)}</span>
-          </div>
-          <a href="#/checkout" class="btn btn-primary btn-lg" style="width:100%">
-            <i data-lucide="credit-card" class="w-5 h-5"></i> Proceed to Checkout
-          </a>
-          <a href="#/products" class="btn btn-ghost" style="width:100%;margin-top:0.5rem;text-align:center">
-            Continue Shopping
-          </a>
+        <!-- Deliver To -->
+        <div class="cart-deliver-to">
+          <i data-lucide="map-pin" class="w-4 h-4" style="color:var(--primary-light)"></i>
+          <span>Deliver to: <strong>Airport Residential, Accra</strong></span>
+          <a href="#/checkout" class="edit-link">Edit</a>
+        </div>
 
-          <!-- QR Handoff (desktop only) -->
-          <div id="qr-handoff-section" style="margin-top:1.25rem;text-align:center;display:none">
-            <hr style="border:none;border-top:1px solid var(--border-color);margin:1rem 0">
-            <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem">Continue on your phone</div>
-            <canvas id="qr-code-canvas" style="margin:0 auto"></canvas>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.375rem">Scan to open this page on mobile</div>
+        <!-- Shipping Progress -->
+        <div class="shipping-progress">
+          <div class="shipping-progress-header">
+            <div class="shipping-label">
+              <i data-lucide="truck" class="w-4 h-4" style="color:var(--primary-light)"></i>
+              Accra Express Delivery
+            </div>
+            <span class="shipping-unlock">${remaining > 0 ? `GH₵${formatPrice(remaining)} to unlock FREE` : '✓ FREE shipping!'}</span>
+          </div>
+          <div class="shipping-bar">
+            <div class="shipping-bar-fill" style="width:${shippingProgress}%"></div>
+          </div>
+          <div class="shipping-bar-labels">
+            <span>GH₵0</span>
+            <span>GH₵${formatPrice(deliveryThreshold)}</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start">
+          <!-- Left Column: Cart Items -->
+          <div>
+            ${cartProducts.map(item => renderCartItem(item)).join('')}
+
+            <!-- Voucher Section -->
+            <div class="voucher-section">
+              <h3>
+                <i data-lucide="ticket" class="w-4 h-4" style="color:var(--gold)"></i>
+                Voucher & Promo Code
+              </h3>
+              <div class="voucher-input-row">
+                <input type="text" class="form-input" id="voucher-input" placeholder="Enter code (e.g. MOMO10)" value="${appliedVoucher || ''}">
+                <button class="btn btn-primary btn-sm" id="apply-voucher-btn">Apply</button>
+              </div>
+              ${appliedVoucher ? `
+                <div class="voucher-applied">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
+                  <span>${appliedVoucher} applied: -GH₵ ${formatPrice(voucherDiscount)} on Mobile Money</span>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Payment Method -->
+            <div style="margin-top:1rem">
+              <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:0.75rem">Payment Method</h3>
+              <div class="payment-tabs">
+                <div class="payment-tab ${selectedPaymentMethod === 'mtn_momo' ? 'active' : ''}" onclick="selectPayment('mtn_momo')">
+                  <div class="payment-tab-icon">💛</div>
+                  <div class="payment-tab-label">MTN MoMo</div>
+                  <div class="payment-tab-sublabel">Instant</div>
+                </div>
+                <div class="payment-tab ${selectedPaymentMethod === 'telecash' ? 'active' : ''}" onclick="selectPayment('telecash')">
+                  <div class="payment-tab-icon">🔴</div>
+                  <div class="payment-tab-label">Telecash</div>
+                  <div class="payment-tab-sublabel">Cash</div>
+                </div>
+                <div class="payment-tab ${selectedPaymentMethod === 'bank_card' ? 'active' : ''}" onclick="selectPayment('bank_card')">
+                  <div class="payment-tab-icon">💳</div>
+                  <div class="payment-tab-label">Bank Card</div>
+                  <div class="payment-tab-sublabel">Visa/MC</div>
+                </div>
+              </div>
+
+              <!-- Escrow Toggle -->
+              <div class="escrow-toggle">
+                <div>
+                  <div class="escrow-toggle-label">🛡️ 100% Escrow Protection</div>
+                  <div style="font-size:0.75rem;color:var(--text-muted)">Funds held until you inspect & approve</div>
+                </div>
+                <div class="toggle-switch active" id="escrow-toggle" onclick="this.classList.toggle('active')"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Order Summary -->
+          <div>
+            <div class="order-summary" style="position:sticky;top:80px">
+              <h3>Order Summary</h3>
+              <div class="summary-row">
+                <span>Subtotal (${cartProducts.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                <span>GH₵ ${formatPrice(subtotal)}</span>
+              </div>
+              ${voucherDiscount > 0 ? `
+                <div class="summary-row discount">
+                  <span>Voucher (${appliedVoucher})</span>
+                  <span>-GH₵ ${formatPrice(voucherDiscount)}</span>
+                </div>
+              ` : ''}
+              <div class="summary-row ${deliveryFee === 0 ? 'delivery' : ''}">
+                <span>Accra Express</span>
+                <span>${deliveryFee === 0 ? 'FREE' : `GH₵ ${formatPrice(deliveryFee)}`}</span>
+              </div>
+              <div class="summary-row">
+                <span>Buyer Protection</span>
+                <span>GH₵ ${formatPrice(buyerProtection)}</span>
+              </div>
+              <hr class="summary-divider">
+              <div class="summary-total">
+                <span>Payable Total</span>
+                <span class="amount">GH₵ ${formatPrice(total)}</span>
+              </div>
+
+              <a href="#/checkout" class="btn btn-primary btn-lg" style="width:100%;margin-top:1rem">
+                Proceed to Checkout
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+              </a>
+
+              <div style="text-align:center;margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted)">
+                <i data-lucide="shield-check" class="w-3 h-3" style="display:inline"></i>
+                Bank of Ghana Regulated Escrow
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      <style>
-        @media(max-width:768px) {
-          .cart-layout { grid-template-columns:1fr !important; }
-        }
-      </style>
     `;
 
+    // Setup events
+    setupCartEvents();
     if (window.lucide) lucide.createIcons();
-
-    // QR handoff: show on desktop only (>=769px)
-    if (window.matchMedia('(min-width: 769px)').matches && typeof QRCode !== 'undefined') {
-      const qrSection = document.getElementById('qr-handoff-section');
-      const qrCanvas = document.getElementById('qr-code-canvas');
-      if (qrSection && qrCanvas) {
-        qrSection.style.display = 'block';
-        QRCode.toCanvas(qrCanvas, window.location.href, {
-          width: 120,
-          margin: 1,
-          color: { dark: '#f5f5f5', light: '#161616' }
-        });
-      }
-    }
   } catch (err) {
-    container.innerHTML = `<div class="empty-state"><h3>Failed to load cart</h3><p>${sanitize(err.message)}</p></div>`;
+    container.innerHTML = `<div class="empty-state"><h3>Error loading cart</h3><p>${sanitize(err.message)}</p><a href="#/products" class="btn btn-primary">Browse Products</a></div>`;
   }
 }
 
-function updateCartItemQty(productId, qty) {
-  if (qty < 1) {
-    removeCartItem(productId);
+function renderCartItem(item) {
+  const p = item.product;
+  const image = p.images?.[0] || 'icons/icon-192.png';
+  const vendorName = p.vendors?.store_name || 'TrustLink Vendor';
+
+  return `
+    <div class="cart-item" id="cart-item-${p.id}">
+      <img src="${sanitizeAttr(image)}" alt="${sanitizeAttr(p.title)}" class="cart-item-image" onclick="App.navigate('/product/${p.id}')">
+      <div class="cart-item-info">
+        <div class="cart-item-vendor">${sanitize(vendorName)}</div>
+        <div class="cart-item-title">${sanitize(p.title)}</div>
+        <div class="cart-item-price">
+          <span class="price-current">GH₵ ${formatPrice(p.price)}</span>
+          ${p.compare_at_price ? `<span class="price-original">GH₵ ${formatPrice(p.compare_at_price)}</span>` : ''}
+        </div>
+        <div class="cart-item-actions">
+          <div class="qty-selector">
+            <button class="qty-btn" onclick="updateCartQty('${p.id}', ${item.quantity - 1})">−</button>
+            <span class="qty-value">${item.quantity}</span>
+            <button class="qty-btn" onclick="updateCartQty('${p.id}', ${item.quantity + 1})">+</button>
+          </div>
+          <button onclick="removeCartItem('${p.id}')">
+            <i data-lucide="trash-2" class="w-3 h-3"></i> Remove
+          </button>
+        </div>
+      </div>
+      <div style="text-align:right;font-weight:800;font-size:1rem;color:var(--primary-light);white-space:nowrap">
+        GH₵ ${formatPrice(p.price * item.quantity)}
+      </div>
+    </div>
+  `;
+}
+
+function setupCartEvents() {
+  // Voucher apply
+  const voucherBtn = document.getElementById('apply-voucher-btn');
+  if (voucherBtn) {
+    voucherBtn.addEventListener('click', () => {
+      const input = document.getElementById('voucher-input');
+      const code = input?.value.trim().toUpperCase();
+      if (code) {
+        appliedVoucher = code;
+        Toast.success(`Voucher ${code} applied! 🎉`);
+        initCartPage();
+      } else {
+        Toast.warning('Enter a voucher code');
+      }
+    });
+  }
+}
+
+function selectPayment(method) {
+  selectedPaymentMethod = method;
+  document.querySelectorAll('.payment-tab').forEach(tab => tab.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+function updateCartQty(product_id, qty) {
+  if (qty <= 0) {
+    removeCartItem(product_id);
     return;
   }
-  Cart.updateQuantity(productId, qty);
-  initCartPage(); // Refresh
+  Cart.updateQuantity(product_id, qty);
+  initCartPage();
 }
 
-function removeCartItem(productId) {
-  Cart.remove(productId);
-  Toast.info('Item removed from cart');
-  initCartPage(); // Refresh
+function removeCartItem(product_id) {
+  Cart.remove(product_id);
+  Toast.success('Item removed');
+  initCartPage();
 }
 
-function clearEntireCart() {
-  Modal.confirm('Clear Cart', 'Are you sure you want to remove all items from your cart?', () => {
+function clearCartConfirm() {
+  Modal.confirm('Clear Cart', 'Remove all items from your cart?', () => {
     Cart.clear();
-    Toast.info('Cart cleared');
+    Toast.success('Cart cleared');
     initCartPage();
   }, { danger: true, confirmText: 'Clear All' });
 }

@@ -41,11 +41,41 @@ function renderHeader() {
           </button>
         </div>
 
-        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
-          <i data-lucide="menu" class="w-6 h-6"></i>
-        </button>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <button class="btn-icon" id="theme-toggle-mobile" title="Toggle dark/light mode" style="display:none">
+            <i data-lucide="moon" class="w-4 h-4" id="theme-icon-mobile"></i>
+          </button>
+          <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+          </button>
+        </div>
       </div>
     </nav>
+
+    <!-- Mobile Header Extra: Location + Search + Payment Pills -->
+    <div class="mobile-header-extra" id="mobile-header-extra">
+      <div class="mobile-location">
+        <i data-lucide="map-pin" class="w-3 h-3"></i>
+        <span>Airport Residential, Accra</span>
+        <i data-lucide="chevron-down" class="w-3 h-3" style="margin-left:auto"></i>
+      </div>
+      <div class="mobile-search-bar" id="mobile-search-bar">
+        <i data-lucide="search" class="w-4 h-4 search-icon"></i>
+        <input type="text" placeholder="Search Ghana verified tech, textiles..." id="mobile-search-input">
+        <i data-lucide="mic" class="w-4 h-4" style="color:var(--text-muted)"></i>
+      </div>
+      <div class="payment-pills">
+        <div class="payment-pill active">
+          <span class="pill-dot"></span> MTN MoMo Instant
+        </div>
+        <div class="payment-pill">
+          <span class="pill-dot" style="background:var(--error)"></span> Telecash Cash
+        </div>
+        <div class="payment-pill">
+          <span class="pill-dot" style="background:var(--info)"></span> Bank Escrow
+        </div>
+      </div>
+    </div>
 
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-nav" id="bottom-nav">
@@ -55,8 +85,8 @@ function renderHeader() {
           <span>Home</span>
         </a>
         <a href="#/products" class="bottom-nav-item" data-bnav="products">
-          <i data-lucide="shopping-bag" class="w-5 h-5"></i>
-          <span>Shop</span>
+          <i data-lucide="grid-3x3" class="w-5 h-5"></i>
+          <span>Categories</span>
         </a>
         <a href="#/cart" class="bottom-nav-item" data-bnav="cart" style="position:relative">
           <i data-lucide="shopping-cart" class="w-5 h-5"></i>
@@ -101,16 +131,38 @@ function initHeader() {
     });
   });
 
-  // Theme toggle
+  // Theme toggle (desktop)
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
-      const html = document.documentElement;
-      const current = html.getAttribute('data-theme');
-      const next = current === 'light' ? 'dark' : 'light';
-      html.setAttribute('data-theme', next);
-      localStorage.setItem('trustlink_theme', next);
-      updateThemeIcon(next);
+      toggleTheme();
+    });
+  }
+
+  // Theme toggle (mobile)
+  const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+  if (themeToggleMobile) {
+    // Show on mobile
+    if (window.innerWidth <= 768) {
+      themeToggleMobile.style.display = 'flex';
+    }
+    themeToggleMobile.addEventListener('click', () => {
+      toggleTheme();
+    });
+  }
+
+  // Mobile search
+  const mobileSearchInput = document.getElementById('mobile-search-input');
+  if (mobileSearchInput) {
+    mobileSearchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const q = mobileSearchInput.value.trim();
+        if (q) {
+          App.navigate('/products?search=' + encodeURIComponent(q));
+          mobileSearchInput.value = '';
+          mobileSearchInput.blur();
+        }
+      }
     });
   }
 
@@ -128,12 +180,25 @@ function initHeader() {
   updateHeaderAuth();
 }
 
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('trustlink_theme', next);
+  updateThemeIcon(next);
+}
+
 function updateThemeIcon(theme) {
   const icon = document.getElementById('theme-icon');
   if (icon) {
     icon.setAttribute('data-lucide', theme === 'dark' ? 'moon' : 'sun');
-    if (window.lucide) lucide.createIcons();
   }
+  const iconMobile = document.getElementById('theme-icon-mobile');
+  if (iconMobile) {
+    iconMobile.setAttribute('data-lucide', theme === 'dark' ? 'moon' : 'sun');
+  }
+  if (window.lucide) lucide.createIcons();
 }
 
 function updateCartCount(count) {
