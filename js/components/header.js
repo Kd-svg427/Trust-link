@@ -22,6 +22,15 @@ function renderHeader() {
         </a>
 
         <div class="navbar-nav" id="navbar-nav">
+          <div class="drawer-header">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <img src="icons/icon-192.png" alt="" width="28" height="28" style="border-radius:var(--radius-sm)">
+              <span>TrustLink</span>
+            </div>
+            <button class="btn-icon" id="close-menu-btn" aria-label="Close menu">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
           <a href="#/" class="nav-link" data-nav="home">
             <i data-lucide="home" class="w-4 h-4"></i> Home
           </a>
@@ -105,17 +114,16 @@ function renderHeader() {
 function initHeader() {
   // Mobile menu toggle
   const menuBtn = document.getElementById('mobile-menu-btn');
+  const closeMenuBtn = document.getElementById('close-menu-btn');
   const nav = document.getElementById('navbar-nav');
   if (menuBtn && nav) {
     menuBtn.addEventListener('click', () => {
-      nav.classList.toggle('open');
-      const icon = menuBtn.querySelector('i');
-      if (nav.classList.contains('open')) {
-        icon.setAttribute('data-lucide', 'x');
-      } else {
-        icon.setAttribute('data-lucide', 'menu');
-      }
-      if (window.lucide) lucide.createIcons();
+      nav.classList.add('open');
+    });
+  }
+  if (closeMenuBtn && nav) {
+    closeMenuBtn.addEventListener('click', () => {
+      nav.classList.remove('open');
     });
   }
 
@@ -123,11 +131,6 @@ function initHeader() {
   nav?.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
       nav.classList.remove('open');
-      const icon = menuBtn?.querySelector('i');
-      if (icon) {
-        icon.setAttribute('data-lucide', 'menu');
-        if (window.lucide) lucide.createIcons();
-      }
     });
   });
 
@@ -262,6 +265,10 @@ function updateHeaderAuth() {
 }
 
 function updateActiveNavLink(route) {
+  // Close mobile drawer on any route change
+  const navEl = document.getElementById('navbar-nav');
+  if (navEl) navEl.classList.remove('open');
+
   // Top nav
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.remove('active');
