@@ -3,8 +3,8 @@
 // Cache-first for static assets, network-first for API
 // ============================================
 
-const STATIC_CACHE = 'trustlink-static-v10';
-const DATA_CACHE = 'trustlink-data-v10';
+const STATIC_CACHE = 'trustlink-static-v11';
+const DATA_CACHE = 'trustlink-data-v11';
 
 // Static assets to pre-cache (app shell)
 const STATIC_ASSETS = [
@@ -29,7 +29,8 @@ const STATIC_ASSETS = [
   '/js/pages/login.js',
   '/js/pages/buyer-dashboard.js',
   '/js/pages/vendor-dashboard.js',
-  '/js/pages/admin-dashboard.js',
+  '/js/admin/admin.css',
+  '/js/admin/admin.bundle.js',
   '/js/pages/privacy.js',
   '/js/pages/terms.js',
   '/icons/icon-192.png',

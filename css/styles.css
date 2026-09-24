@@ -561,6 +561,11 @@ textarea.form-input {
 /* ============================================
    Header / Navbar
    ============================================ */
+body.admin-mode #app-header,
+body.admin-mode #app-footer-container {
+  display: none;
+}
+
 .navbar {
   position: fixed;
   top: 0;

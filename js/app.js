@@ -2,6 +2,53 @@
 // TrustLink — Main App (Router + Init)
 // ============================================
 
+const AdminShell = {
+  loaded: false,
+  mounted: false,
+
+  ensureAssets() {
+    if (!document.getElementById('admin-css')) {
+      const link = document.createElement('link');
+      link.id = 'admin-css';
+      link.rel = 'stylesheet';
+      link.href = 'js/admin/admin.css';
+      document.head.appendChild(link);
+    }
+    if (this.loaded) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.id = 'admin-js';
+      script.src = 'js/admin/admin.bundle.js';
+      script.onload = () => {
+        this.loaded = true;
+        resolve();
+      };
+      script.onerror = () => reject(new Error('Failed to load admin dashboard bundle'));
+      document.body.appendChild(script);
+    });
+  },
+
+  async mount() {
+    await this.ensureAssets();
+    const el = document.getElementById('tl-admin');
+    if (!el || !window.__TRUST_ADMIN__) return;
+    const profile = App.getState().profile;
+    window.__TRUST_ADMIN__.mount(el, { name: profile?.name || 'Admin' });
+    this.mounted = true;
+    document.body.classList.add('admin-mode');
+  },
+
+  unmount() {
+    if (this.mounted && window.__TRUST_ADMIN__) {
+      window.__TRUST_ADMIN__.unmount();
+    }
+    this.mounted = false;
+    document.body.classList.remove('admin-mode');
+    const css = document.getElementById('admin-css');
+    if (css) css.remove();
+  }
+};
+
 const App = {
   state: {
     session: null,
@@ -29,6 +76,9 @@ const App = {
 
     const appMain = document.getElementById('app-main');
     if (!appMain) return;
+
+    // Tear down React admin when navigating away
+    if (path !== '/admin') AdminShell.unmount();
 
     // Show loader
     appMain.innerHTML = '<div class="page-loader"><div class="loader"></div></div>';
@@ -74,8 +124,8 @@ const App = {
       html = await renderVendorDashboardPage();
       initFn = initVendorDashboardPage;
     } else if (path === '/admin') {
-      html = await renderAdminDashboardPage();
-      initFn = initAdminDashboardPage;
+      html = '<div id="tl-admin"></div>';
+      initFn = () => AdminShell.mount();
     } else if (path === '/privacy') {
       html = await renderPrivacyPage();
       initFn = initPrivacyPage;
