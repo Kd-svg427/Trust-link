@@ -5,6 +5,7 @@
 const AdminShell = {
   loaded: false,
   mounted: false,
+  loadPromise: null,
 
   ensureAssets() {
     if (!document.getElementById('admin-css')) {
@@ -15,7 +16,16 @@ const AdminShell = {
       document.head.appendChild(link);
     }
     if (this.loaded) return Promise.resolve();
-    return new Promise((resolve, reject) => {
+    if (this.loadPromise) return this.loadPromise;
+
+    this.loadPromise = new Promise((resolve, reject) => {
+      const existing = document.getElementById('admin-js');
+      if (existing) {
+        // Script tag already added by a previous attempt
+        existing.addEventListener('load', () => { this.loaded = true; resolve(); });
+        existing.addEventListener('error', () => { this.loadPromise = null; reject(new Error('Failed to load admin dashboard bundle')); });
+        return;
+      }
       const script = document.createElement('script');
       script.id = 'admin-js';
       script.src = 'js/admin/admin.bundle.js';
@@ -23,17 +33,34 @@ const AdminShell = {
         this.loaded = true;
         resolve();
       };
-      script.onerror = () => reject(new Error('Failed to load admin dashboard bundle'));
+      script.onerror = () => {
+        this.loadPromise = null;
+        script.remove();
+        reject(new Error('Failed to load admin dashboard bundle'));
+      };
       document.body.appendChild(script);
     });
+    return this.loadPromise;
   },
 
   async mount() {
-    await this.ensureAssets();
+    try {
+      await this.ensureAssets();
+    } catch (err) {
+      const el = document.getElementById('tl-admin');
+      if (el) {
+        el.innerHTML = `<div class="empty-state" style="padding-top:120px;min-height:100vh"><h3>Admin dashboard failed to load</h3><p>${sanitize(err.message)}</p><a href="#/" class="btn btn-primary">Go Home</a></div>`;
+      }
+      return;
+    }
     const el = document.getElementById('tl-admin');
     if (!el || !window.__TRUST_ADMIN__) return;
     const profile = App.getState().profile;
-    window.__TRUST_ADMIN__.mount(el, { name: profile?.name || 'Admin' });
+    window.__TRUST_ADMIN__.mount(el, {
+      name: profile?.name || 'Admin',
+      supabaseUrl: SUPABASE_URL,
+      supabaseKey: SUPABASE_ANON_KEY
+    });
     this.mounted = true;
     document.body.classList.add('admin-mode');
   },
@@ -77,6 +104,9 @@ const App = {
     const appMain = document.getElementById('app-main');
     if (!appMain) return;
 
+    // Navigation token: a newer route invalidates any in-flight one
+    const token = (this._navToken = (this._navToken || 0) + 1);
+
     // Tear down React admin when navigating away
     if (path !== '/admin') AdminShell.unmount();
 
@@ -88,53 +118,60 @@ const App = {
     let pageArg = null;
 
     // Match routes
-    if (path === '/' || path === '') {
-      html = await renderHomePage();
-      initFn = initHomePage;
-    } else if (path === '/products') {
-      html = await renderProductsPage();
-      initFn = initProductsPage;
-    } else if (path.startsWith('/product/')) {
-      pageArg = path.split('/product/')[1];
-      html = await renderProductDetailPage(pageArg);
-      initFn = () => initProductDetailPage(pageArg);
-    } else if (path === '/cart') {
-      html = await renderCartPage();
-      initFn = initCartPage;
-    } else if (path === '/checkout') {
-      html = await renderCheckoutPage();
-      initFn = initCheckoutPage;
-    } else if (path.startsWith('/order-success/')) {
-      pageArg = path.split('/order-success/')[1];
-      html = await renderOrderSuccessPage(pageArg);
-      initFn = () => initOrderSuccessPage(pageArg);
-    } else if (path === '/login' || path === '/register') {
-      // Redirect if already logged in
-      if (this.state.profile) {
-        const role = this.state.profile.role;
-        this.navigate(role === 'vendor' ? '/vendor' : role === 'admin' ? '/admin' : '/dashboard');
-        return;
-      }
-      html = await renderLoginPage();
-      initFn = initLoginPage;
-    } else if (path === '/dashboard') {
-      html = await renderBuyerDashboardPage();
-      initFn = initBuyerDashboardPage;
-    } else if (path === '/vendor') {
-      html = await renderVendorDashboardPage();
-      initFn = initVendorDashboardPage;
-    } else if (path === '/admin') {
-      html = '<div id="tl-admin"></div>';
-      initFn = () => AdminShell.mount();
-    } else if (path === '/privacy') {
-      html = await renderPrivacyPage();
-      initFn = initPrivacyPage;
-    } else if (path === '/terms') {
-      html = await renderTermsPage();
-      initFn = initTermsPage;
-    } else {
-      // 404
-      html = `
+    try {
+      if (path === '/' || path === '') {
+        html = await renderHomePage();
+        initFn = initHomePage;
+      } else if (path === '/products') {
+        html = await renderProductsPage();
+        initFn = initProductsPage;
+      } else if (path.startsWith('/product/')) {
+        pageArg = path.split('/product/')[1];
+        html = await renderProductDetailPage(pageArg);
+        initFn = () => initProductDetailPage(pageArg);
+      } else if (path === '/cart') {
+        html = await renderCartPage();
+        initFn = initCartPage;
+      } else if (path === '/checkout') {
+        html = await renderCheckoutPage();
+        initFn = initCheckoutPage;
+      } else if (path.startsWith('/order-success/')) {
+        pageArg = path.split('/order-success/')[1];
+        html = await renderOrderSuccessPage(pageArg);
+        initFn = () => initOrderSuccessPage(pageArg);
+      } else if (path === '/login' || path === '/register') {
+        // Redirect if already logged in
+        if (this.state.profile) {
+          const role = this.state.profile.role;
+          this.navigate(role === 'vendor' ? '/vendor' : role === 'admin' ? '/admin' : '/dashboard');
+          return;
+        }
+        html = await renderLoginPage();
+        initFn = initLoginPage;
+      } else if (path === '/dashboard') {
+        html = await renderBuyerDashboardPage();
+        initFn = initBuyerDashboardPage;
+      } else if (path === '/vendor') {
+        html = await renderVendorDashboardPage();
+        initFn = initVendorDashboardPage;
+      } else if (path === '/admin') {
+        // Guard: only admin-role users can access the admin dashboard
+        if (!this.state.profile || this.state.profile.role !== 'admin') {
+          if (typeof Toast !== 'undefined') Toast.warning('Admin access only — please log in with an admin account');
+          this.navigate('/login');
+          return;
+        }
+        html = '<div id="tl-admin"></div>';
+        initFn = () => AdminShell.mount();
+      } else if (path === '/privacy') {
+        html = await renderPrivacyPage();
+        initFn = initPrivacyPage;
+      } else if (path === '/terms') {
+        html = await renderTermsPage();
+        initFn = initTermsPage;
+      } else {
+        // 404
+        html = `
         <div style="padding-top:80px;min-height:100vh;display:flex;align-items:center;justify-content:center">
           <div class="empty-state">
             <div class="empty-state-icon" style="font-size:4rem">🔍</div>
@@ -144,7 +181,23 @@ const App = {
           </div>
         </div>
       `;
+      }
+    } catch (err) {
+      console.error('Page render error:', err);
+      html = `
+        <div style="padding-top:80px;min-height:100vh;display:flex;align-items:center;justify-content:center">
+          <div class="empty-state">
+            <div class="empty-state-icon" style="font-size:4rem">⚠️</div>
+            <h3 style="font-size:1.5rem">Something went wrong</h3>
+            <p>${typeof sanitize === 'function' ? sanitize(err.message) : 'Please try again.'}</p>
+            <a href="#/" class="btn btn-primary btn-lg" style="margin-top:1rem">Go Home</a>
+          </div>
+        </div>
+      `;
     }
+
+    // A newer navigation started while this one was loading — drop this one
+    if (token !== this._navToken) return;
 
     // Render
     appMain.innerHTML = html;
@@ -161,6 +214,13 @@ const App = {
     // Re-render icons
     if (window.lucide) lucide.createIcons();
 
+    // Apply theme to header/footer/banner after page render
+    if (typeof ThemeLoader !== 'undefined') {
+      ThemeLoader.applyHeader();
+      ThemeLoader.applyFooter();
+      if (path === '/' || path === '') ThemeLoader.applyBanner();
+    }
+
     // Update active nav link
     updateActiveNavLink(path);
 
@@ -172,11 +232,17 @@ const App = {
   // Init
   // ==========================================
   async init() {
+    // Load theme settings from Supabase (applies CSS variables immediately)
+    if (typeof ThemeLoader !== 'undefined') {
+      await ThemeLoader.load();
+    }
+
     // Render header
     const headerEl = document.getElementById('app-header');
     if (headerEl) {
       headerEl.innerHTML = renderHeader();
       initHeader();
+      if (typeof ThemeLoader !== 'undefined') ThemeLoader.applyHeader();
     }
 
     // Render footer
@@ -184,6 +250,7 @@ const App = {
     if (footerEl) {
       footerEl.innerHTML = renderFooter();
       initFooter();
+      if (typeof ThemeLoader !== 'undefined') ThemeLoader.applyFooter();
     }
 
     // Auth state listener
@@ -292,13 +359,15 @@ const App = {
   // Service Worker Registration
   // ==========================================
   registerSW() {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('SW registered:', reg.scope))
-          .catch(err => console.warn('SW registration failed:', err));
-      });
-    }
+    if (!('serviceWorker' in navigator)) return;
+    const register = () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.warn('SW registration failed:', err));
+    };
+    // init() may finish after the window load event has already fired
+    if (document.readyState === 'complete') register();
+    else window.addEventListener('load', register, { once: true });
   }
 };
 

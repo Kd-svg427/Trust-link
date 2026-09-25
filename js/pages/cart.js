@@ -2,9 +2,6 @@
 // TrustLink — Cart Page (Redesigned)
 // ============================================
 
-let selectedPaymentMethod = 'mtn_momo';
-let appliedVoucher = null;
-
 async function renderCartPage() {
   return `
     <div style="padding-top:80px;min-height:100vh">
@@ -54,14 +51,10 @@ async function initCartPage() {
       return;
     }
 
+    // Totals match checkout exactly (subtotal only — delivery is free).
+    // Payment method is chosen on the checkout page.
     const subtotal = cartProducts.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-    const deliveryThreshold = 500;
-    const deliveryFee = subtotal >= deliveryThreshold ? 0 : 25;
-    const shippingProgress = Math.min((subtotal / deliveryThreshold) * 100, 100);
-    const remaining = Math.max(deliveryThreshold - subtotal, 0);
-    const voucherDiscount = appliedVoucher ? 100 : 0;
-    const buyerProtection = 5;
-    const total = subtotal - voucherDiscount + deliveryFee + buyerProtection;
+    const total = subtotal;
 
     container.innerHTML = `
       <div class="animate-fade-in-up">
@@ -80,77 +73,15 @@ async function initCartPage() {
           <a href="#/checkout" class="edit-link">Edit</a>
         </div>
 
-        <!-- Shipping Progress -->
-        <div class="shipping-progress">
-          <div class="shipping-progress-header">
-            <div class="shipping-label">
-              <i data-lucide="truck" class="w-4 h-4" style="color:var(--primary-light)"></i>
-              Accra Express Delivery
-            </div>
-            <span class="shipping-unlock">${remaining > 0 ? `GH₵${formatPrice(remaining)} to unlock FREE` : '✓ FREE shipping!'}</span>
-          </div>
-          <div class="shipping-bar">
-            <div class="shipping-bar-fill" style="width:${shippingProgress}%"></div>
-          </div>
-          <div class="shipping-bar-labels">
-            <span>GH₵0</span>
-            <span>GH₵${formatPrice(deliveryThreshold)}</span>
-          </div>
-        </div>
-
         <div style="display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start">
           <!-- Left Column: Cart Items -->
           <div>
             ${cartProducts.map(item => renderCartItem(item)).join('')}
 
-            <!-- Voucher Section -->
-            <div class="voucher-section">
-              <h3>
-                <i data-lucide="ticket" class="w-4 h-4" style="color:var(--gold)"></i>
-                Voucher & Promo Code
-              </h3>
-              <div class="voucher-input-row">
-                <input type="text" class="form-input" id="voucher-input" placeholder="Enter code (e.g. MOMO10)" value="${appliedVoucher || ''}">
-                <button class="btn btn-primary btn-sm" id="apply-voucher-btn">Apply</button>
-              </div>
-              ${appliedVoucher ? `
-                <div class="voucher-applied">
-                  <i data-lucide="check-circle" class="w-4 h-4"></i>
-                  <span>${appliedVoucher} applied: -GH₵ ${formatPrice(voucherDiscount)} on Mobile Money</span>
-                </div>
-              ` : ''}
-            </div>
-
-            <!-- Payment Method -->
-            <div style="margin-top:1rem">
-              <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:0.75rem">Payment Method</h3>
-              <div class="payment-tabs">
-                <div class="payment-tab ${selectedPaymentMethod === 'mtn_momo' ? 'active' : ''}" onclick="selectPayment('mtn_momo')">
-                  <div class="payment-tab-icon">💛</div>
-                  <div class="payment-tab-label">MTN MoMo</div>
-                  <div class="payment-tab-sublabel">Instant</div>
-                </div>
-                <div class="payment-tab ${selectedPaymentMethod === 'telecash' ? 'active' : ''}" onclick="selectPayment('telecash')">
-                  <div class="payment-tab-icon">🔴</div>
-                  <div class="payment-tab-label">Telecash</div>
-                  <div class="payment-tab-sublabel">Cash</div>
-                </div>
-                <div class="payment-tab ${selectedPaymentMethod === 'bank_card' ? 'active' : ''}" onclick="selectPayment('bank_card')">
-                  <div class="payment-tab-icon">💳</div>
-                  <div class="payment-tab-label">Bank Card</div>
-                  <div class="payment-tab-sublabel">Visa/MC</div>
-                </div>
-              </div>
-
-              <!-- Escrow Toggle -->
-              <div class="escrow-toggle">
-                <div>
-                  <div class="escrow-toggle-label">🛡️ 100% Escrow Protection</div>
-                  <div style="font-size:0.75rem;color:var(--text-muted)">Funds held until you inspect & approve</div>
-                </div>
-                <div class="toggle-switch active" id="escrow-toggle" onclick="this.classList.toggle('active')"></div>
-              </div>
-            </div>
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-top:1rem">
+              <i data-lucide="shield-check" class="w-3 h-3" style="display:inline"></i>
+              Payment method and delivery details are configured on the next step.
+            </p>
           </div>
 
           <!-- Right Column: Order Summary -->
@@ -161,19 +92,9 @@ async function initCartPage() {
                 <span>Subtotal (${cartProducts.reduce((s, i) => s + i.quantity, 0)} items)</span>
                 <span>GH₵ ${formatPrice(subtotal)}</span>
               </div>
-              ${voucherDiscount > 0 ? `
-                <div class="summary-row discount">
-                  <span>Voucher (${appliedVoucher})</span>
-                  <span>-GH₵ ${formatPrice(voucherDiscount)}</span>
-                </div>
-              ` : ''}
-              <div class="summary-row ${deliveryFee === 0 ? 'delivery' : ''}">
+              <div class="summary-row delivery">
                 <span>Accra Express</span>
-                <span>${deliveryFee === 0 ? 'FREE' : `GH₵ ${formatPrice(deliveryFee)}`}</span>
-              </div>
-              <div class="summary-row">
-                <span>Buyer Protection</span>
-                <span>GH₵ ${formatPrice(buyerProtection)}</span>
+                <span>FREE</span>
               </div>
               <hr class="summary-divider">
               <div class="summary-total">
@@ -197,7 +118,6 @@ async function initCartPage() {
     `;
 
     // Setup events
-    setupCartEvents();
     if (window.lucide) lucide.createIcons();
   } catch (err) {
     container.innerHTML = `<div class="empty-state"><h3>Error loading cart</h3><p>${sanitize(err.message)}</p><a href="#/products" class="btn btn-primary">Browse Products</a></div>`;
@@ -223,7 +143,7 @@ function renderCartItem(item) {
           <div class="qty-selector">
             <button class="qty-btn" onclick="updateCartQty('${p.id}', ${item.quantity - 1})">−</button>
             <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" onclick="updateCartQty('${p.id}', ${item.quantity + 1})">+</button>
+            <button class="qty-btn" onclick="updateCartQty('${p.id}', ${item.quantity + 1}, ${parseInt(p.stock_quantity, 10) || 999})">+</button>
           </div>
           <button onclick="removeCartItem('${p.id}')">
             <i data-lucide="trash-2" class="w-3 h-3"></i> Remove
@@ -237,34 +157,14 @@ function renderCartItem(item) {
   `;
 }
 
-function setupCartEvents() {
-  // Voucher apply
-  const voucherBtn = document.getElementById('apply-voucher-btn');
-  if (voucherBtn) {
-    voucherBtn.addEventListener('click', () => {
-      const input = document.getElementById('voucher-input');
-      const code = input?.value.trim().toUpperCase();
-      if (code) {
-        appliedVoucher = code;
-        Toast.success(`Voucher ${code} applied! 🎉`);
-        initCartPage();
-      } else {
-        Toast.warning('Enter a voucher code');
-      }
-    });
-  }
-}
-
-function selectPayment(method) {
-  selectedPaymentMethod = method;
-  document.querySelectorAll('.payment-tab').forEach(tab => tab.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-}
-
-function updateCartQty(product_id, qty) {
+function updateCartQty(product_id, qty, maxQty = Infinity) {
   if (qty <= 0) {
     removeCartItem(product_id);
     return;
+  }
+  if (qty > maxQty) {
+    Toast.warning(`Only ${maxQty} in stock`);
+    qty = maxQty;
   }
   Cart.updateQuantity(product_id, qty);
   initCartPage();

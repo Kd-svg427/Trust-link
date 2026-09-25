@@ -13,9 +13,9 @@ function renderProductCard(product, options = {}) {
 
   const vendorName = product.vendors?.store_name || 'TrustLink Vendor';
 
-  // Flash deal progress (simulated based on stock)
+  // Flash deal progress (derived from stock — stable across re-renders)
   const showProgress = options.showProgress || false;
-  const totalStock = product.stock_quantity + Math.floor(Math.random() * 50 + 10);
+  const totalStock = product.stock_quantity + 50;
   const claimed = Math.round(((totalStock - product.stock_quantity) / totalStock) * 100);
 
   return `
@@ -100,6 +100,18 @@ function sanitizeAttr(str) {
   return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Only allow safe URL schemes for anything rendered into href/src/url().
+// Blocks javascript:, data:, vbscript:, etc. Allows https?, hash, and
+// relative paths.
+function safeUrl(str) {
+  if (!str) return '';
+  const url = String(str).trim();
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return /^https?:\/\//i.test(url) ? url : '';
+  }
+  return url;
+}
+
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric'
@@ -131,7 +143,8 @@ function getStatusBadge(status) {
     vendor: 'badge-gold',
     admin: 'badge-error'
   };
-  return `<span class="badge ${map[status] || 'badge-info'}">${status}</span>`;
+  const cls = Object.prototype.hasOwnProperty.call(map, status) ? map[status] : 'badge-info';
+  return `<span class="badge ${cls}">${sanitize(String(status ?? ''))}</span>`;
 }
 
 function getPaymentMethodLabel(method) {
@@ -142,7 +155,9 @@ function getPaymentMethodLabel(method) {
     airteltigo_money: 'AirtelTigo Money',
     bank_card: 'Bank Card'
   };
-  return map[method] || method;
+  return Object.prototype.hasOwnProperty.call(map, method)
+    ? map[method]
+    : sanitize(String(method ?? ''));
 }
 
 function renderStars(rating, interactive = false) {
@@ -167,24 +182,29 @@ function debounce(fn, ms = 300) {
   };
 }
 
-// Countdown timer utility
+// Countdown timer utility (one live interval per target element)
+const countdownTimers = {};
 function startCountdown(targetDate, elementId) {
+  if (countdownTimers[elementId]) clearInterval(countdownTimers[elementId]);
   function update() {
     const now = new Date().getTime();
     const distance = targetDate - now;
-    if (distance < 0) return;
+    const el = document.getElementById(elementId);
+    if (distance < 0 || !el) {
+      clearInterval(countdownTimers[elementId]);
+      delete countdownTimers[elementId];
+      return;
+    }
     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-    const el = document.getElementById(elementId);
-    if (el) {
-      el.innerHTML = `
+    el.innerHTML = `
         <span class="countdown-box">${String(hours).padStart(2, '0')}</span>:
         <span class="countdown-box">${String(minutes).padStart(2, '0')}</span>:
         <span class="countdown-box">${String(seconds).padStart(2, '0')}</span>
       `;
-    }
   }
   update();
-  return setInterval(update, 1000);
+  countdownTimers[elementId] = setInterval(update, 1000);
+  return countdownTimers[elementId];
 }

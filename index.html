@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 
-  <!-- Security Headers (meta tags — server headers are better but this helps on static hosts) -->
+  <!-- Security headers (X-Frame-Options must be an HTTP header — see netlify.toml) -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="X-Frame-Options" content="DENY">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 
   <!-- SEO Meta Tags -->
@@ -45,7 +44,7 @@
   <link rel="stylesheet" href="css/styles.css">
 
   <!-- Tailwind CSS v4 (Browser Build) -->
-  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <script src="https://unpkg.com/@tailwindcss/browser@4.3.3"></script>
   <style type="text/tailwindcss">
     @theme {
       --color-primary: #1B5E20;
@@ -57,10 +56,10 @@
   </style>
 
   <!-- Supabase JS Client (v2 CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- Lucide Icons (1.0.0: last version with brand icons — footer socials) -->
+  <script src="https://unpkg.com/lucide@1.0.0/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- App Shell -->
@@ -88,6 +87,9 @@
 
   <!-- Supabase Client + API Helpers -->
   <script src="js/supabase.js"></script>
+
+  <!-- Theme Loader (must be after supabase.js) -->
+  <script src="js/theme-loader.js"></script>
 
   <!-- Components -->
   <script src="js/components/toast.js"></script>

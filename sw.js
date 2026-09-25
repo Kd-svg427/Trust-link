@@ -3,8 +3,7 @@
 // Cache-first for static assets, network-first for API
 // ============================================
 
-const STATIC_CACHE = 'trustlink-static-v11';
-const DATA_CACHE = 'trustlink-data-v11';
+const STATIC_CACHE = 'trustlink-static-v12';
 
 // Static assets to pre-cache (app shell)
 const STATIC_ASSETS = [
@@ -14,6 +13,7 @@ const STATIC_ASSETS = [
   '/css/styles.css',
   '/js/app.js',
   '/js/supabase.js',
+  '/js/theme-loader.js',
   '/js/components/header.js',
   '/js/components/footer.js',
   '/js/components/product-card.js',
@@ -129,7 +129,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== STATIC_CACHE && name !== DATA_CACHE)
+          .filter((name) => name !== STATIC_CACHE)
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
@@ -197,8 +197,7 @@ async function cacheFirstStrategy(request) {
 async function networkFirstStrategy(request) {
   try {
     const response = await fetch(request);
-    // Never cache authenticated API responses — contains user data
-    // Only cache if response has a no-store or private cache hint, skip caching entirely for API
+    // Never cache API responses — they contain authenticated user data
     return response;
   } catch (err) {
     // No offline fallback for API calls — fail loudly instead of serving stale data

@@ -29,7 +29,7 @@ async function renderHomePage() {
           <a href="#/products" class="section-link">See All →</a>
         </div>
         <div class="explore-hub" id="explore-hub">
-          <a class="explore-item" href="#/products?category=phones">
+          <a class="explore-item" href="#/products?category=phones-tablets">
             <div class="explore-icon">📱</div>
             <span>Phones</span>
           </a>
@@ -37,11 +37,11 @@ async function renderHomePage() {
             <div class="explore-icon">👗</div>
             <span>Fashion</span>
           </a>
-          <a class="explore-item" href="#/products?category=groceries">
+          <a class="explore-item" href="#/products?category=food-groceries">
             <div class="explore-icon">🥬</div>
             <span>Groceries</span>
           </a>
-          <a class="explore-item" href="#/products?category=beauty">
+          <a class="explore-item" href="#/products?category=beauty-health">
             <div class="explore-icon">💄</div>
             <span>Beauty</span>
           </a>
@@ -49,15 +49,15 @@ async function renderHomePage() {
             <div class="explore-icon">💻</div>
             <span>Electronics</span>
           </a>
-          <a class="explore-item" href="#/products?category=solar">
+          <a class="explore-item" href="#/products">
             <div class="explore-icon">☀️</div>
             <span>Solar</span>
           </a>
-          <a class="explore-item" href="#/products?category=home">
+          <a class="explore-item" href="#/products?category=home-living">
             <div class="explore-icon">🏠</div>
             <span>Home</span>
           </a>
-          <a class="explore-item" href="#/products?category=auto">
+          <a class="explore-item" href="#/products">
             <div class="explore-icon">🚗</div>
             <span>Auto</span>
           </a>
@@ -182,15 +182,15 @@ async function initHomePage() {
         'fashion': 'shirt',
         'beauty-health': 'sparkles',
         'phones-tablets': 'smartphone',
-        'groceries': 'shopping-basket',
+        'food-groceries': 'shopping-basket',
         'home-living': 'home',
-        'auto': 'car',
-        'solar': 'sun'
+        'sports-outdoors': 'trophy',
+        'books-stationery': 'book-open'
       };
       catContainer.innerHTML = categories.slice(0, 8).map(cat => `
         <a href="#/products?category=${encodeURIComponent(cat.slug || cat.id)}" class="category-card">
           <div class="category-icon">
-            <i data-lucide="${categoryIcons[cat.slug] || 'package'}" class="w-6 h-6"></i>
+            <i data-lucide="${pickIcon(categoryIcons, cat.slug)}" class="w-6 h-6"></i>
           </div>
           <span class="category-name">${sanitize(cat.name)}</span>
         </a>

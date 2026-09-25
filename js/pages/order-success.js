@@ -2,7 +2,7 @@
 // TrustLink — Order Success Page
 // ============================================
 
-async function renderOrderSuccessPage(orderIds) {
+async function renderOrderSuccessPage() {
   return `
     <div style="padding-top:80px;min-height:100vh">
       <div class="section" style="padding-top:2rem">

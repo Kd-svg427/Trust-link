@@ -36,15 +36,14 @@ const Auth = {
     return session;
   },
 
-  async getUser() {
-    const { data: { user } } = await sb.auth.getUser();
-    return user;
-  },
-
   onAuthStateChange(callback) {
     return sb.auth.onAuthStateChange(callback);
   }
 };
+
+// Top-level const doesn't create a window property — expose the helpers so
+// other bundles (e.g. the admin dashboard) can drive the storefront session.
+window.Auth = Auth;
 
 
 // ============================================
@@ -60,26 +59,6 @@ const Profiles = {
       .single();
     if (error) throw error;
     return data;
-  },
-
-  async update(userId, updates) {
-    const { data, error } = await sb
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  async getAll() {
-    const { data, error } = await sb
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
   }
 };
 
@@ -96,16 +75,6 @@ const Categories = {
       .order('name');
     if (error) throw error;
     return data || [];
-  },
-
-  async getBySlug(slug) {
-    const { data, error } = await sb
-      .from('categories')
-      .select('*')
-      .eq('slug', slug)
-      .single();
-    if (error) throw error;
-    return data;
   }
 };
 
@@ -121,16 +90,6 @@ const Vendors = {
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
-  },
-
-  async getById(id) {
-    const { data, error } = await sb
-      .from('vendors')
-      .select('*, profiles(name, email, phone, avatar_url)')
-      .eq('id', id)
-      .single();
-    if (error) throw error;
-    return data;
   },
 
   async getByProfileId(profileId) {
@@ -170,6 +129,12 @@ const Vendors = {
 // Product Helpers
 // ============================================
 
+// PostgREST filter strings treat , ( ) as syntax — strip them from search
+// input so a query can never break out of its intended filter.
+function sanitizeSearchTerm(q) {
+  return String(q || '').replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
 const Products = {
   async getAll({ category, search, sort, page = 1, limit = 12, featured, vendorId, status } = {}) {
     let query = sb.from('products').select(`
@@ -183,7 +148,8 @@ const Products = {
     if (status) query = query.eq('approval_status', status);
     if (featured) query = query.eq('featured', true);
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+      const term = sanitizeSearchTerm(search);
+      if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
     }
 
     // Sorting
@@ -194,14 +160,15 @@ const Products = {
       default: query = query.order('featured', { ascending: false }).order('created_at', { ascending: false });
     }
 
-    // Pagination
-    const from = (page - 1) * limit;
+    // Pagination (never allow page < 1 — negative offsets make PostgREST error)
+    const safePage = Math.max(1, parseInt(page, 10) || 1);
+    const from = (safePage - 1) * limit;
     const to = from + limit - 1;
     query = query.range(from, to);
 
     const { data, error, count } = await query;
     if (error) throw error;
-    return { products: data || [], total: count || 0, page, limit };
+    return { products: data || [], total: count || 0, page: safePage, limit };
   },
 
   async getById(id) {
@@ -245,18 +212,6 @@ const Products = {
       .delete()
       .eq('id', id);
     if (error) throw error;
-  },
-
-  async getFlashDeals(limit = 8) {
-    const { data, error } = await sb
-      .from('products')
-      .select('*, vendors(id, store_name, logo_url), categories(id, name, slug)')
-      .not('compare_at_price', 'is', null)
-      .eq('approval_status', 'approved')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (error) throw error;
-    return data || [];
   }
 };
 
@@ -286,7 +241,12 @@ const Orders = {
     const { error: itemsError } = await sb
       .from('order_items')
       .insert(orderItems);
-    if (itemsError) throw itemsError;
+
+    if (itemsError) {
+      // Roll back the parent order so no empty/orphan orders are left behind
+      await sb.from('orders').delete().eq('id', order.id);
+      throw itemsError;
+    }
 
     return order;
   },
@@ -314,20 +274,6 @@ const Orders = {
         order_items(*, products(id, title, images, price))
       `)
       .eq('vendor_id', vendorId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-  },
-
-  async getAll() {
-    const { data, error } = await sb
-      .from('orders')
-      .select(`
-        *,
-        profiles!orders_buyer_id_fkey(name, email),
-        vendors(id, store_name),
-        order_items(*, products(id, title))
-      `)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
@@ -430,22 +376,6 @@ const Announcements = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
-  },
-
-  async create(title, message) {
-    const user = await Auth.getUser();
-    const { data, error } = await sb
-      .from('announcements')
-      .insert({ title, message, created_by: user?.id })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  async remove(id) {
-    const { error } = await sb.from('announcements').delete().eq('id', id);
-    if (error) throw error;
   }
 };
 
@@ -467,10 +397,19 @@ function validateImageFile(file) {
   }
 }
 
+// Extension derived from the (validated) MIME type, never from the file name,
+// so a name like "evil.svg.html" can't influence the stored path.
+const EXT_BY_TYPE = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif'
+};
+
 const Storage = {
   async uploadProductImage(file, vendorId) {
     validateImageFile(file);
-    const ext = file.name.split('.').pop().toLowerCase();
+    const ext = EXT_BY_TYPE[file.type];
     const path = `${vendorId}/${Date.now()}.${ext}`;
     const { data, error } = await sb.storage
       .from('product-images')
@@ -484,7 +423,7 @@ const Storage = {
 
   async uploadVendorLogo(file, vendorId) {
     validateImageFile(file);
-    const ext = file.name.split('.').pop().toLowerCase();
+    const ext = EXT_BY_TYPE[file.type];
     const path = `${vendorId}/${Date.now()}.${ext}`;
     const { data, error } = await sb.storage
       .from('vendor-logos')

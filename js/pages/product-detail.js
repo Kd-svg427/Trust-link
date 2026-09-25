@@ -16,12 +16,16 @@ async function initProductDetailPage(productId) {
   const container = document.getElementById('product-detail-content');
   if (!container) return;
 
+  detailQty = 1;
+  detailQtyMax = 1;
+
   try {
     const product = await Products.getById(productId);
     if (!product) {
       container.innerHTML = `<div class="empty-state"><h3>Product not found</h3><p>This product may have been removed.</p><a href="#/products" class="btn btn-primary">Browse Products</a></div>`;
       return;
     }
+    detailQtyMax = Math.max(1, parseInt(product.stock_quantity, 10) || 1);
 
     const { avg, count } = await Reviews.getAverageRating(productId);
     const reviews = await Reviews.getByProduct(productId);
@@ -232,7 +236,7 @@ function renderReview(review) {
     <div class="glass-card" style="padding:1.25rem;margin-bottom:1rem">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
         <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--gold));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem">
-          ${name.charAt(0).toUpperCase()}
+          ${sanitize(name.charAt(0).toUpperCase())}
         </div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:0.9rem">${sanitize(name)}</div>
@@ -252,15 +256,22 @@ function switchGalleryImage(src, thumb) {
 }
 
 let detailQty = 1;
+let detailQtyMax = 1;
 function updateDetailQty(delta) {
-  detailQty = Math.max(1, detailQty + delta);
+  const next = detailQty + delta;
+  if (next > detailQtyMax) {
+    Toast.warning(`Only ${detailQtyMax} in stock`);
+    return;
+  }
+  detailQty = Math.max(1, next);
   const el = document.getElementById('detail-qty');
   if (el) el.textContent = detailQty;
 }
 
 function addDetailToCart(productId) {
-  Cart.add(productId, detailQty);
-  Toast.success(`Added ${detailQty} item${detailQty > 1 ? 's' : ''} to cart!`);
+  const qty = Math.min(detailQty, detailQtyMax);
+  Cart.add(productId, qty);
+  Toast.success(`Added ${qty} item${qty > 1 ? 's' : ''} to cart!`);
   detailQty = 1;
   const el = document.getElementById('detail-qty');
   if (el) el.textContent = '1';

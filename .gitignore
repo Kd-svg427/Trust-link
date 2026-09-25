@@ -1,1 +1,4 @@
 admin/node_modules/
+admin/.env
+.vscode/
+js/admin/index.html

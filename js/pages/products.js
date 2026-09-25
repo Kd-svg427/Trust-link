@@ -5,7 +5,31 @@
 let productsPage = 1;
 let productsCategory = '';
 let productsSearch = '';
+let productsVendor = '';
 const PRODUCTS_PER_PAGE = 12;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let _categoryCache = null;
+
+// Category links use slugs, but products.category_id expects a UUID —
+// resolve slug (or pass UUID through) before querying.
+async function resolveCategoryId(value) {
+  if (!value) return null;
+  if (UUID_RE.test(value)) return value;
+  if (!_categoryCache) {
+    try {
+      _categoryCache = await Categories.getAll();
+    } catch {
+      _categoryCache = [];
+    }
+  }
+  const match = _categoryCache.find(c => c.slug === value || c.id === value);
+  return match ? match.id : null;
+}
+
+function pickIcon(map, slug) {
+  return Object.prototype.hasOwnProperty.call(map, slug) ? map[slug] : 'package';
+}
 
 async function renderProductsPage() {
   return `
@@ -98,7 +122,8 @@ async function initProductsPage() {
   const params = new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : '');
   productsCategory = params.get('category') || '';
   productsSearch = params.get('search') || '';
-  productsPage = parseInt(params.get('page')) || 1;
+  productsVendor = params.get('vendor') || '';
+  productsPage = Math.max(1, parseInt(params.get('page'), 10) || 1);
 
   // Set search input
   const searchInput = document.getElementById('products-search-input');
@@ -151,18 +176,18 @@ async function initProductsPage() {
         'fashion': 'shirt',
         'beauty-health': 'sparkles',
         'phones-tablets': 'smartphone',
-        'groceries': 'shopping-basket',
+        'food-groceries': 'shopping-basket',
         'home-living': 'home',
-        'auto': 'car',
-        'solar': 'sun'
+        'sports-outdoors': 'trophy',
+        'books-stationery': 'book-open'
       };
       sidebar.innerHTML = `
-        <button class="cat-sidebar-item ${!productsCategory ? 'active' : ''}" data-cat="" onclick="filterByCategory(this, '')">
+        <button class="cat-sidebar-item ${!productsCategory ? 'active' : ''}" data-cat="" onclick="filterByCategory(this, this.dataset.cat)">
           <i data-lucide="grid-3x3" class="w-4 h-4"></i> All
         </button>
         ${categories.map(cat => `
-          <button class="cat-sidebar-item ${productsCategory === (cat.slug || cat.id) ? 'active' : ''}" data-cat="${cat.slug || cat.id}" onclick="filterByCategory(this, '${cat.slug || cat.id}')">
-            <i data-lucide="${categoryIcons[cat.slug] || 'package'}" class="w-4 h-4"></i> ${sanitize(cat.name)}
+          <button class="cat-sidebar-item ${productsCategory === (cat.slug || cat.id) ? 'active' : ''}" data-cat="${sanitizeAttr(cat.slug || cat.id)}" onclick="filterByCategory(this, this.dataset.cat)">
+            <i data-lucide="${pickIcon(categoryIcons, cat.slug)}" class="w-4 h-4"></i> ${sanitize(cat.name)}
           </button>
         `).join('')}
       `;
@@ -188,11 +213,24 @@ async function loadProducts() {
   grid.innerHTML = Array(8).fill(0).map(() => renderProductCardSkeleton()).join('');
 
   try {
+    if (productsPage < 1) productsPage = 1;
+
+    let categoryId;
+    if (productsCategory) {
+      categoryId = await resolveCategoryId(productsCategory);
+      if (!categoryId) {
+        Toast.warning(`Unknown category "${productsCategory}" — showing all products`);
+        productsCategory = '';
+        document.querySelectorAll('.cat-sidebar-item').forEach(b => b.classList.toggle('active', b.dataset.cat === ''));
+      }
+    }
+
     const opts = {
       page: productsPage,
       limit: PRODUCTS_PER_PAGE,
       search: productsSearch || undefined,
-      category: productsCategory || undefined
+      category: categoryId || undefined,
+      vendorId: productsVendor || undefined
     };
 
     const { products, total } = await Products.getAll(opts);
@@ -307,7 +345,7 @@ async function loadTopMerchants() {
             </div>
             <div class="merchant-meta">
               <span>📍 Accra</span>
-              <span>⭐ 4.${Math.floor(Math.random()*5) + 5}</span>
+              <span>🛡️ Escrow Protected</span>
             </div>
             <div class="merchant-badges">
               <span class="merchant-tag instant">Instant MoMo</span>

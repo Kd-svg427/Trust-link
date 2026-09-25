@@ -15,6 +15,9 @@ const Toast = {
 
   show(message, type = 'info', duration = 4000) {
     this.init();
+    // Accept both show(msg, 6000) and show(msg, { duration: 6000 })
+    if (duration && typeof duration === 'object') duration = duration.duration;
+    if (typeof duration !== 'number' || Number.isNaN(duration)) duration = 4000;
     const icons = {
       success: '<i data-lucide="check-circle" class="w-5 h-5" style="color:var(--success)"></i>',
       error: '<i data-lucide="x-circle" class="w-5 h-5" style="color:var(--error)"></i>',

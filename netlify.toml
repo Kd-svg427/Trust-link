@@ -1,4 +1,20 @@
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Security headers (site-wide)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Partial CSP: only directives that are safe to lock down without a full
+    # browser test. Deliberately no default-src — it would fall back for
+    # script-src/style-src and block the CDN scripts + Google Fonts the app
+    # depends on. TODO: add script-src/style-src after verifying in-browser.
+    Content-Security-Policy = "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"

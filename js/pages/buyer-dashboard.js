@@ -68,6 +68,10 @@ async function initBuyerDashboardPage() {
   const state = App.getState();
   if (!state.profile) return;
 
+  // Push opt-in doesn't depend on orders — render it first so it also shows
+  // for buyers with no orders (and even if the orders query fails).
+  setupPushOptin();
+
   try {
     const orders = await Orders.getByBuyer(state.profile.id);
     const container = document.getElementById('buyer-orders-list');
@@ -135,33 +139,39 @@ async function initBuyerDashboardPage() {
     `;
 
     if (window.lucide) lucide.createIcons();
-
-    // Push notification opt-in
-    const pushSection = document.getElementById('push-optin-section');
-    if (pushSection && PushNotifications.isSupported() && PushNotifications.getPermission() === 'default') {
-      pushSection.innerHTML = `
-        <div class="glass-card" style="padding:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-          <i data-lucide="bell" class="w-5 h-5" style="color:var(--primary-light)"></i>
-          <div style="flex:1;min-width:200px">
-            <div style="font-weight:600;font-size:0.9rem">Get order updates</div>
-            <div style="font-size:0.8rem;color:var(--text-muted)">We'll notify you when your order status changes</div>
-          </div>
-          <button class="btn btn-primary btn-sm" id="push-enable-btn">Enable Notifications</button>
-        </div>
-      `;
-      if (window.lucide) lucide.createIcons();
-      document.getElementById('push-enable-btn')?.addEventListener('click', async () => {
-        const sub = await PushNotifications.subscribe();
-        if (sub) {
-          await PushNotifications.saveSubscription(sub);
-          Toast.success('Notifications enabled!');
-          pushSection.innerHTML = '';
-        }
-      });
-    }
   } catch (err) {
     document.getElementById('buyer-orders-list').innerHTML = `<div class="empty-state"><h3>Failed to load orders</h3><p>${sanitize(err.message)}</p></div>`;
   }
+}
+
+function setupPushOptin() {
+  const pushSection = document.getElementById('push-optin-section');
+  if (!pushSection || !window.PushNotifications) return;
+  if (!PushNotifications.isSupported() || PushNotifications.getPermission() !== 'default') return;
+
+  pushSection.innerHTML = `
+    <div class="glass-card" style="padding:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <i data-lucide="bell" class="w-5 h-5" style="color:var(--primary-light)"></i>
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:600;font-size:0.9rem">Get order updates</div>
+        <div style="font-size:0.8rem;color:var(--text-muted)">We'll notify you when your order status changes</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="push-enable-btn">Enable Notifications</button>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+  document.getElementById('push-enable-btn')?.addEventListener('click', async () => {
+    try {
+      const sub = await PushNotifications.subscribe();
+      if (sub) {
+        await PushNotifications.saveSubscription(sub);
+        Toast.success('Notifications enabled!');
+        pushSection.innerHTML = '';
+      }
+    } catch (err) {
+      Toast.error('Could not enable notifications: ' + (err?.message || 'unknown error'));
+    }
+  });
 }
 
 async function showOrderDetail(orderId) {

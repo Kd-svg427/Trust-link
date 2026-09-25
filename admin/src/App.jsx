@@ -1,65 +1,147 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { ToastProvider } from './context/ToastContext.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Topbar from './components/Topbar.jsx';
-import StatCard from './components/StatCard.jsx';
-import OrderOverview from './components/OrderOverview.jsx';
-import StockDonut from './components/StockDonut.jsx';
-import ProductCard from './components/ProductCard.jsx';
-import Dropdown from './components/Dropdown.jsx';
-import { statCards, products as initialProducts, extraProducts } from './data/mockData.js';
+import DashboardPage from './pages/DashboardPage.jsx';
+import VendorsPage from './pages/VendorsPage.jsx';
+import BuyersPage from './pages/BuyersPage.jsx';
+import ProductsPage from './pages/ProductsPage.jsx';
+import OrdersPage from './pages/OrdersPage.jsx';
+import CategoriesPage from './pages/CategoriesPage.jsx';
+import ThemePage from './pages/ThemePage.jsx';
+import { subscribeToChanges } from './lib/api.js';
+import { Loader2, ShieldAlert, LogIn, Settings } from 'lucide-react';
 
-const sortOptions = ['Most sales', 'Price: high', 'Name A–Z'];
-
-function useViewportMode() {
-  const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
+function useViewport() {
+  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
   useEffect(() => {
-    const onResize = () => setWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    const fn = () => setW(window.innerWidth);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
   }, []);
-  return width < 768 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop';
+  return w < 768 ? 'mobile' : w < 1024 ? 'tablet' : 'desktop';
 }
 
-export default function App({ name = 'Mac' }) {
-  const mode = useViewportMode();
+function PlaceholderPage({ title, message }) {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center max-w-sm">
+        <Settings className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+        <h2 className="text-lg font-bold text-slate-900 mb-1">{title}</h2>
+        <p className="text-sm text-slate-500">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function AdminShell() {
+  const { profile, loading, error, retry } = useAuth();
+  const mode = useViewport();
   const [active, setActive] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('Most sales');
-  const [productList, setProductList] = useState(initialProducts);
-  const [addedCount, setAddedCount] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const collapsed = mode === 'tablet' ? true : desktopCollapsed;
 
+  useEffect(() => { if (mode !== 'mobile') setMobileOpen(false); }, [mode]);
+
+  // Realtime: refresh current page when data changes
   useEffect(() => {
-    if (mode !== 'mobile') setMobileOpen(false);
-  }, [mode]);
+    if (!profile) return;
+    const unsub = subscribeToChanges(
+      ['orders', 'products', 'vendors', 'profiles'],
+      () => setRefreshKey(k => k + 1)
+    );
+    return unsub;
+  }, [profile]);
 
-  const visibleProducts = useMemo(() => {
-    let list = productList.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()));
-    if (sort === 'Most sales') list = [...list].sort((a, b) => b.sales - a.sales);
-    else if (sort === 'Price: high')
-      list = [...list].sort(
-        (a, b) => parseFloat(b.price.replace(/[^0-9.]/g, '')) - parseFloat(a.price.replace(/[^0-9.]/g, ''))
-      );
-    else list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-    return list;
-  }, [productList, query, sort]);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-page">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-brand mx-auto mb-3" />
+          <p className="text-sm text-slate-500">Loading admin dashboard…</p>
+        </div>
+      </div>
+    );
+  }
 
-  const addProduct = () => {
-    const next = extraProducts[addedCount];
-    if (next) {
-      setProductList((prev) => [...prev, { ...next, id: next.id + addedCount * 100 }]);
-      setAddedCount((c) => c + 1);
-    }
-  };
+  if (error === 'ACCESS_DENIED') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-page">
+        <div className="text-center max-w-sm">
+          <ShieldAlert className="w-16 h-16 text-accent-red mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
+          <p className="text-sm text-slate-500 mb-6">Only administrators can access this dashboard. Please log in with an admin account.</p>
+          <a href="#/login" className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark transition-colors">
+            <LogIn className="w-4 h-4" /> Go to Login
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && error !== 'ACCESS_DENIED' && error !== 'SIGNED_OUT') {
+    // Unexpected failure (network error, DB error, ...) — not a session issue
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-page">
+        <div className="text-center max-w-sm">
+          <ShieldAlert className="w-16 h-16 text-accent-red mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Something went wrong</h2>
+          <p className="text-sm text-slate-500 mb-6 break-words">{String(error)}</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={retry}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
+            >
+              <Loader2 className="w-4 h-4" /> Try Again
+            </button>
+            <a href="#/login" className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white transition-colors">
+              <LogIn className="w-4 h-4" /> Log In
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error === 'SIGNED_OUT' || !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-page">
+        <div className="text-center max-w-sm">
+          <LogIn className="w-14 h-14 text-slate-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Session Expired</h2>
+          <p className="text-sm text-slate-500 mb-6">Please log in again to continue.</p>
+          <a href="#/login" className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark transition-colors">
+            <LogIn className="w-4 h-4" /> Log In
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const contentPad = mode === 'mobile' ? 0 : collapsed ? 72 : 240;
 
+  const renderPage = () => {
+    const props = { key: `${active}-${refreshKey}`, refreshKey };
+    switch (active) {
+      case 'dashboard': return <DashboardPage {...props} />;
+      case 'vendors': return <VendorsPage {...props} />;
+      case 'buyers': return <BuyersPage {...props} />;
+      case 'products': return <ProductsPage {...props} />;
+      case 'orders': return <OrdersPage {...props} />;
+      case 'categories': return <CategoriesPage {...props} />;
+      case 'theme': return <ThemePage {...props} />;
+      case 'settings': return <PlaceholderPage {...props} title="Settings" message="Admin settings aren't available yet." />;
+      case 'help': return <PlaceholderPage {...props} title="Get Help" message="Help docs aren't available yet. Contact the development team for support." />;
+      default: return <DashboardPage {...props} />;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-page text-slate-800">
+    <div className="admin-shell" style={{ '--admin-sidebar-w': `${contentPad}px` }}>
       <Sidebar
         mode={mode}
         collapsed={collapsed}
@@ -69,60 +151,25 @@ export default function App({ name = 'Mac' }) {
         active={active}
         setActive={setActive}
       />
-
-      <div className="transition-[padding] duration-300" style={{ paddingLeft: contentPad }}>
-        <Topbar name={name} query={query} onQuery={setQuery} onMenu={() => setMobileOpen(true)} />
-
-        <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-6">
-            {statCards.map((s) => (
-              <StatCard key={s.key} {...s} />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-            <div className="lg:col-span-2">
-              <OrderOverview />
-            </div>
-            <StockDonut />
-          </div>
-
-          <section className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(16,24,40,0.06)] transition-shadow hover:shadow-[0_6px_16px_rgba(16,24,40,0.10)] lg:p-6">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-base font-bold text-slate-900">Most Selling Product</h3>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <Dropdown
-                  options={sortOptions}
-                  value={sort}
-                  onChange={setSort}
-                  prefix="Sort by: "
-                />
-                <button
-                  type="button"
-                  onClick={addProduct}
-                  disabled={addedCount >= extraProducts.length}
-                  className="flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add products
-                </button>
-              </div>
-            </div>
-
-            {visibleProducts.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">
-                No products match “{query}”
-              </p>
-            ) : (
-              <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2">
-                {visibleProducts.map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
-              </div>
-            )}
-          </section>
+      <div className="admin-content">
+        <Topbar
+          profile={profile}
+          onMenu={() => setMobileOpen(true)}
+        />
+        <main className="admin-page">
+          {renderPage()}
         </main>
       </div>
     </div>
+  );
+}
+
+export default function App({ supabaseUrl, supabaseKey }) {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <AdminShell />
+      </AuthProvider>
+    </ToastProvider>
   );
 }

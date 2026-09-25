@@ -44,8 +44,8 @@ function renderFooter() {
             <li><a href="#/products?category=fashion">Fashion & Kente</a></li>
             <li><a href="#/products?category=beauty-health">Beauty & Shea</a></li>
             <li><a href="#/products?category=phones-tablets">Phones & Tablets</a></li>
-            <li><a href="#/products?category=groceries">Fresh Groceries</a></li>
-            <li><a href="#/products?category=solar">Solar & Power</a></li>
+            <li><a href="#/products?category=food-groceries">Fresh Groceries</a></li>
+            <li><a href="#/products?category=sports-outdoors">Sports & Outdoors</a></li>
           </ul>
         </div>
 
@@ -84,6 +84,10 @@ function initFooter() {
       const msgDiv = document.getElementById('newsletter-msg');
       const email = emailInput.value.trim();
       if (!email) return;
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        msgDiv.innerHTML = '<span style="color:var(--error)">Please enter a valid email address.</span>';
+        return;
+      }
 
       try {
         await Newsletter.subscribe(email);

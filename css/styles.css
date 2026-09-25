@@ -561,9 +561,27 @@ textarea.form-input {
 /* ============================================
    Header / Navbar
    ============================================ */
+body.admin-mode {
+  background: #f4f6f8 !important;
+  color: #1e293b !important;
+  padding-bottom: 0 !important;
+  overflow-x: hidden;
+}
+
 body.admin-mode #app-header,
-body.admin-mode #app-footer-container {
-  display: none;
+body.admin-mode #app-footer-container,
+body.admin-mode .bottom-nav {
+  display: none !important;
+}
+
+body.admin-mode #app,
+body.admin-mode #app-main,
+body.admin-mode #tl-admin {
+  min-height: 100vh;
+  background: #f4f6f8;
+  color: #1e293b;
+  padding: 0;
+  margin: 0;
 }
 
 .navbar {
@@ -2877,6 +2895,19 @@ body.admin-mode #app-footer-container {
   .container {
     padding: 0 1rem;
   }
+}
+
+
+/* ============================================
+   Role Option (Login / Register)
+   ============================================ */
+.role-option {
+  transition: all var(--transition-fast);
+}
+
+.role-option.selected {
+  border-color: var(--primary-light) !important;
+  background: rgba(76, 175, 80, 0.08) !important;
 }
 
 

@@ -43,12 +43,14 @@ async function renderVendorDashboardPage() {
 
 async function initVendorDashboardPage() {
   const state = App.getState();
+  const contentEl = document.getElementById('vendor-content');
+  if (!state.profile || state.profile.role !== 'vendor' || !contentEl) return;
   if (!state.vendor) {
     const vendor = await Vendors.getByProfileId(state.profile.id);
     if (vendor) {
       App.setState({ ...state, vendor });
     } else {
-      document.getElementById('vendor-content').innerHTML = `
+      contentEl.innerHTML = `
         <div class="empty-state">
           <h3>Store Not Set Up</h3>
           <p>Your vendor application is being processed, or you need to create your store.</p>
@@ -240,7 +242,7 @@ async function renderVendorProducts(container, state) {
                   <td>${getStatusBadge(p.approval_status)}</td>
                   <td style="white-space:nowrap">
                     <button class="btn btn-ghost btn-sm" onclick="editProductModal('${p.id}')"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-                    <button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p.id}','${sanitizeAttr(p.title)}')" style="color:var(--error)"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    <button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p.id}', this.dataset.title)" data-title="${sanitizeAttr(p.title)}" style="color:var(--error)"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                   </td>
                 </tr>
               `).join('')}
@@ -294,7 +296,7 @@ function showProductModal(product, categories, vendor) {
       </div>
       <div class="form-group">
         <label class="form-label">Image URL</label>
-        <input type="url" class="form-input" id="pm-image" value="${product?.images?.[0] || ''}" placeholder="https://...">
+        <input type="url" class="form-input" id="pm-image" value="${sanitizeAttr(product?.images?.[0] || '')}" placeholder="https://...">
       </div>
       <div class="form-group">
         <label class="form-label">Or Upload Image</label>
@@ -325,14 +327,25 @@ function showProductModal(product, categories, vendor) {
       Toast.warning('Please fill in title, category, and price');
       return;
     }
+    if (imageUrl && !safeUrl(imageUrl)) {
+      Toast.warning('Image URL must start with http:// or https://');
+      return;
+    }
 
     const btn = document.getElementById('pm-submit');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
 
     try {
+      let images;
       if (imageFile) {
         imageUrl = await Storage.uploadProductImage(imageFile, vendor.id);
+        images = [imageUrl];
+      } else if (imageUrl === (product?.images?.[0] || '')) {
+        // Field untouched — keep the full original array (preserves extra images)
+        images = product?.images || [];
+      } else {
+        images = imageUrl ? [imageUrl] : [];
       }
 
       const data = {
@@ -343,7 +356,7 @@ function showProductModal(product, categories, vendor) {
         price,
         compare_at_price: comparePrice,
         stock_quantity: stock,
-        images: imageUrl ? [imageUrl] : [],
+        images,
         approval_status: 'pending'
       };
 
@@ -540,6 +553,13 @@ async function renderVendorSettings(container, state) {
       }
 
       let logoUrl = document.getElementById('vs-logo').value.trim();
+      if (logoUrl && !safeUrl(logoUrl)) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Settings';
+        if (window.lucide) lucide.createIcons();
+        Toast.warning('Logo URL must start with http:// or https://');
+        return;
+      }
       const logoFile = document.getElementById('vs-logo-file')?.files?.[0];
       if (logoFile) {
         logoUrl = await Storage.uploadVendorLogo(logoFile, vendorRecord.id);
@@ -555,6 +575,13 @@ async function renderVendorSettings(container, state) {
 
       const updated = await Vendors.update(vendorRecord.id, updates);
       App.setState({ ...App.getState(), vendor: updated });
+
+      // Keep the sidebar header in sync with the saved values
+      const sbName = document.querySelector('#vendor-sidebar h3');
+      if (sbName) sbName.textContent = updated.store_name;
+      const sbImg = document.querySelector('#vendor-sidebar img');
+      if (sbImg && updated.logo_url && safeUrl(updated.logo_url)) sbImg.src = safeUrl(updated.logo_url);
+
       Toast.success('Store settings saved!');
     } catch (err) {
       Toast.error('Failed to save: ' + err.message);

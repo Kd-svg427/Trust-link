@@ -141,16 +141,25 @@ CREATE INDEX idx_announcements_created ON public.announcements(created_at DESC);
 -- ============================================
 
 -- Auto-create profile when a new user signs up
+-- Role comes from signup metadata but is constrained to buyer/vendor;
+-- 'admin' can never be obtained through self-service signup.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  requested_role TEXT;
 BEGIN
+  requested_role := NEW.raw_user_meta_data->>'role';
+  IF requested_role IS NULL OR requested_role NOT IN ('buyer', 'vendor') THEN
+    requested_role := 'buyer';
+  END IF;
+
   INSERT INTO public.profiles (id, name, email, phone, role)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', ''),
     COALESCE(NEW.email, ''),
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    'buyer'
+    requested_role
   );
   RETURN NEW;
 END;
@@ -218,20 +227,175 @@ CREATE TRIGGER tr_products_moderation_guard
 
 
 -- ============================================
+-- PRIVILEGE GUARD — profiles (role / status escalation)
+-- ============================================
+-- RLS lets users update their own row; this trigger decides WHICH columns
+-- they may change: never status, never the admin role.
+CREATE OR REPLACE FUNCTION public.guard_profile_self_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Service role / SQL editor / seeds
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Admins may change anything
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.id <> auth.uid() THEN
+    RAISE EXCEPTION 'Users can only update their own profile';
+  END IF;
+
+  -- Only admins can suspend/reactivate accounts
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    RAISE EXCEPTION 'Only admins can change account status';
+  END IF;
+
+  -- Self-service role changes are limited to buyer <-> vendor.
+  -- The admin role can never be granted or dropped by a non-admin.
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    IF NOT (OLD.role IN ('buyer', 'vendor') AND NEW.role IN ('buyer', 'vendor')) THEN
+      RAISE EXCEPTION 'Insufficient permissions to change role';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_profiles_guard ON public.profiles;
+CREATE TRIGGER tr_profiles_guard
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.guard_profile_self_update();
+
+
+-- ============================================
+-- ORDER GUARDS — payment status & total tampering
+-- ============================================
+-- Buyers can create orders (RLS already requires buyer_id = auth.uid()),
+-- but they must never be able to mark their own order as paid or pick an
+-- arbitrary status. Payment status is flipped to 'paid' only by admins.
+CREATE OR REPLACE FUNCTION public.guard_order_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN NEW; -- seeds / SQL editor
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.buyer_id <> auth.uid() THEN
+    RAISE EXCEPTION 'You can only create orders for yourself';
+  END IF;
+
+  NEW.status := 'pending';
+  NEW.payment_status := 'pending';
+  -- total_amount is re-derived from order_items by recalc_order_total()
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_orders_guard_insert ON public.orders;
+CREATE TRIGGER tr_orders_guard_insert
+  BEFORE INSERT ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.guard_order_insert();
+
+-- On update: vendors/admins may advance fulfilment status, but money fields
+-- (payment_status, total_amount, buyer, vendor, payment method) are locked
+-- for everyone except admins. total_amount is always re-derived from the
+-- actual order_items so it can never drift from what was ordered.
+CREATE OR REPLACE FUNCTION public.guard_order_update()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_total DECIMAL(10,2);
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN NEW; -- seeds / SQL editor
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+    RETURN NEW;
+  END IF;
+
+  NEW.buyer_id := OLD.buyer_id;
+  NEW.vendor_id := OLD.vendor_id;
+  NEW.payment_method := OLD.payment_method;
+  NEW.payment_status := OLD.payment_status;
+
+  SELECT COALESCE(SUM(unit_price * quantity), 0) INTO v_total
+  FROM public.order_items WHERE order_id = NEW.id;
+
+  IF v_total > 0 THEN
+    NEW.total_amount := v_total;
+  ELSE
+    NEW.total_amount := OLD.total_amount;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_orders_guard_update ON public.orders;
+CREATE TRIGGER tr_orders_guard_update
+  BEFORE UPDATE ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.guard_order_update();
+
+-- Keep orders.total_amount in sync with the items that were actually ordered.
+CREATE OR REPLACE FUNCTION public.recalc_order_total()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_total DECIMAL(10,2);
+BEGIN
+  SELECT COALESCE(SUM(unit_price * quantity), 0) INTO v_total
+  FROM public.order_items WHERE order_id = NEW.order_id;
+
+  IF v_total > 0 THEN
+    UPDATE public.orders SET total_amount = v_total WHERE id = NEW.order_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_order_items_recalc_insert ON public.order_items;
+CREATE TRIGGER tr_order_items_recalc_insert
+  AFTER INSERT ON public.order_items
+  FOR EACH ROW EXECUTE FUNCTION public.recalc_order_total();
+
+DROP TRIGGER IF EXISTS tr_order_items_recalc_delete ON public.order_items;
+CREATE TRIGGER tr_order_items_recalc_delete
+  AFTER DELETE ON public.order_items
+  FOR EACH ROW EXECUTE FUNCTION public.recalc_order_total();
+
+
+-- ============================================
 -- STOCK — deduct quantity on order and prevent overselling
+-- Also enforces server-side pricing: unit_price always comes from the
+-- products table for regular users (clients cannot tamper with prices).
 -- ============================================
 CREATE OR REPLACE FUNCTION public.apply_order_stock()
 RETURNS TRIGGER AS $$
 DECLARE
   p_stock INTEGER;
+  p_price DECIMAL(10,2);
 BEGIN
-  SELECT stock_quantity INTO p_stock FROM public.products WHERE id = NEW.product_id;
+  SELECT stock_quantity, price INTO p_stock, p_price FROM public.products WHERE id = NEW.product_id;
   IF p_stock IS NULL THEN
     RAISE EXCEPTION 'Product not found: %', NEW.product_id;
   END IF;
   IF p_stock < NEW.quantity THEN
     RAISE EXCEPTION 'Insufficient stock for product % (only % available)', NEW.product_id, p_stock;
   END IF;
+
+  -- Server-authoritative price (seeds / service role / admins may pass their own)
+  IF auth.uid() IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+    NEW.unit_price := p_price;
+  END IF;
+
   UPDATE public.products SET stock_quantity = stock_quantity - NEW.quantity WHERE id = NEW.product_id;
   RETURN NEW;
 END;
@@ -445,6 +609,24 @@ CREATE POLICY "orders_insert_buyer"
   ON public.orders FOR INSERT
   TO authenticated
   WITH CHECK (buyer_id = auth.uid());
+
+-- Buyers can delete their own EMPTY pending orders only. This exists so a
+-- failed checkout (order created but order_items insert failed) can be rolled
+-- back client-side instead of leaving orphan orders behind. Once an order has
+-- items it can never be deleted from the client.
+CREATE POLICY "orders_delete_own_empty"
+  ON public.orders FOR DELETE
+  TO authenticated
+  USING (buyer_id = auth.uid()
+    AND status = 'pending'
+    AND payment_status = 'pending'
+    AND NOT EXISTS (SELECT 1 FROM public.order_items WHERE order_id = orders.id));
+
+-- Admins can delete any order
+CREATE POLICY "orders_delete_admin"
+  ON public.orders FOR DELETE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
 -- Vendors can update order status for their own orders
 CREATE POLICY "orders_update_vendor"

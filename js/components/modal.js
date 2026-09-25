@@ -3,10 +3,12 @@
 // ============================================
 
 const Modal = {
+  _escHandler: null,
+
   show(title, bodyHtml, options = {}) {
     const { footerHtml = '', maxWidth = '560px', onClose = null } = options;
 
-    // Remove any existing modal
+    // Remove any existing modal (also detaches its ESC handler)
     this.close();
 
     const overlay = document.createElement('div');
@@ -15,7 +17,7 @@ const Modal = {
     overlay.innerHTML = `
       <div class="modal" style="max-width:${maxWidth}" role="dialog" aria-modal="true">
         <div class="modal-header">
-          <h3 class="modal-title">${title}</h3>
+          <h3 class="modal-title">${sanitize(title)}</h3>
           <button class="modal-close" aria-label="Close modal">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
@@ -43,15 +45,14 @@ const Modal = {
       }
     });
 
-    // ESC key
-    const escHandler = (e) => {
+    // ESC key (tracked so close() can always detach it)
+    this._escHandler = (e) => {
       if (e.key === 'Escape') {
         this.close();
         if (onClose) onClose();
-        document.removeEventListener('keydown', escHandler);
       }
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', this._escHandler);
 
     return overlay;
   },
@@ -60,10 +61,10 @@ const Modal = {
     const { confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = options;
     const btnClass = danger ? 'btn btn-danger' : 'btn btn-primary';
 
-    this.show(title, `<p style="color:var(--text-secondary)">${message}</p>`, {
+    this.show(title, `<p style="color:var(--text-secondary)">${sanitize(message)}</p>`, {
       footerHtml: `
-        <button class="btn btn-ghost" id="modal-cancel">${cancelText}</button>
-        <button class="${btnClass}" id="modal-confirm">${confirmText}</button>
+        <button class="btn btn-ghost" id="modal-cancel">${sanitize(cancelText)}</button>
+        <button class="${btnClass}" id="modal-confirm">${sanitize(confirmText)}</button>
       `,
       onClose: null
     });
@@ -76,6 +77,10 @@ const Modal = {
   },
 
   close() {
+    if (this._escHandler) {
+      document.removeEventListener('keydown', this._escHandler);
+      this._escHandler = null;
+    }
     const overlay = document.getElementById('modal-overlay');
     if (overlay) {
       overlay.remove();
