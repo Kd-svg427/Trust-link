@@ -8,29 +8,43 @@
 --      suspended users could reactivate themselves).
 --   2. Buyers could insert orders with payment_status='paid' and arbitrary totals.
 --   3. order_items.unit_price was client-supplied (price tampering).
---   4. Signup always created 'buyer' profiles, so vendors could never reach
---      the vendor dashboard; existing vendor accounts are repaired below.
+--   4. Signup always created 'buyer' profiles and the store row was created
+--      client-side (fails without a session) — so vendor signups never showed
+--      up in the admin dashboard. Both now happen DB-side; old accounts are
+--      repaired below using signup metadata.
 -- ============================================
 
--- 1) Signup honors requested role (buyer/vendor only, never admin)
+-- 1) Signup honors requested role (buyer/vendor only, never admin) and
+--    creates the store row DB-side so new vendors are visible in admin
+--    even when email confirmation means the client has no session yet.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   requested_role TEXT;
+  v_name TEXT;
+  v_phone TEXT;
 BEGIN
   requested_role := NEW.raw_user_meta_data->>'role';
   IF requested_role IS NULL OR requested_role NOT IN ('buyer', 'vendor') THEN
     requested_role := 'buyer';
   END IF;
 
+  v_name := COALESCE(NEW.raw_user_meta_data->>'name', '');
+  v_phone := COALESCE(NEW.raw_user_meta_data->>'phone', '');
+
   INSERT INTO public.profiles (id, name, email, phone, role)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', ''),
-    COALESCE(NEW.email, ''),
-    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    requested_role
-  );
+  VALUES (NEW.id, v_name, COALESCE(NEW.email, ''), v_phone, requested_role);
+
+  IF requested_role = 'vendor' THEN
+    INSERT INTO public.vendors (profile_id, store_name, description, momo_number, whatsapp_number, approval_status)
+    VALUES (
+      NEW.id,
+      CASE WHEN v_name = '' THEN 'My Store' ELSE v_name || '''s Store' END,
+      '', v_phone, v_phone, 'pending'
+    )
+    ON CONFLICT (profile_id) DO NOTHING;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -208,9 +222,28 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- (tr_order_items_stock already exists and keeps pointing at this function)
 
--- 7) Repair existing vendor accounts that were stuck with role='buyer'
---    because the old signup trigger hardcoded it.
+-- 7) Repair accounts affected by the old signup trigger (it hardcoded
+--    role='buyer') and signups whose store row failed client-side.
+--    Signup metadata is the source of truth for intended role.
+UPDATE public.profiles p
+SET role = 'vendor'
+FROM auth.users u
+WHERE u.id = p.id
+  AND p.role = 'buyer'
+  AND u.raw_user_meta_data->>'role' = 'vendor';
+
 UPDATE public.profiles p
 SET role = 'vendor'
 WHERE p.role = 'buyer'
   AND EXISTS (SELECT 1 FROM public.vendors v WHERE v.profile_id = p.id);
+
+-- Give every vendor-profile a store row (missing ones only)
+INSERT INTO public.vendors (profile_id, store_name, description, momo_number, whatsapp_number, approval_status)
+SELECT p.id,
+       CASE WHEN COALESCE(p.name, '') = '' THEN 'My Store' ELSE p.name || '''s Store' END,
+       '', COALESCE(p.phone, ''), COALESCE(p.phone, ''), 'pending'
+FROM public.profiles p
+JOIN auth.users u ON u.id = p.id
+WHERE u.raw_user_meta_data->>'role' = 'vendor'
+  AND p.role = 'vendor'
+ON CONFLICT (profile_id) DO NOTHING;

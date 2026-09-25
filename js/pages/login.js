@@ -161,6 +161,17 @@ async function initLoginPage() {
       const data = await Auth.signUp(email, password, { name, phone, role });
 
       if (data.user) {
+        if (!data.session) {
+          // Email confirmation is enabled — there is no session yet, so the
+          // profile/store can't be loaded client-side. Tell the user instead
+          // of pretending everything is ready.
+          btn.disabled = false;
+          btn.innerHTML = 'Create Account';
+          if (window.lucide) lucide.createIcons();
+          Toast.info('Account created! Check your email to confirm your address, then sign in.');
+          tabLogin?.click();
+          return;
+        }
         if (role === 'vendor') {
           try {
             await Vendors.create({

@@ -143,24 +143,37 @@ CREATE INDEX idx_announcements_created ON public.announcements(created_at DESC);
 -- Auto-create profile when a new user signs up
 -- Role comes from signup metadata but is constrained to buyer/vendor;
 -- 'admin' can never be obtained through self-service signup.
+-- Vendor signups also get their store row created here (DB-side), because the
+-- client often has no session at signup time (email confirmation) and RLS
+-- would reject its own insert — which left vendors invisible to the admin.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   requested_role TEXT;
+  v_name TEXT;
+  v_phone TEXT;
 BEGIN
   requested_role := NEW.raw_user_meta_data->>'role';
   IF requested_role IS NULL OR requested_role NOT IN ('buyer', 'vendor') THEN
     requested_role := 'buyer';
   END IF;
 
+  v_name := COALESCE(NEW.raw_user_meta_data->>'name', '');
+  v_phone := COALESCE(NEW.raw_user_meta_data->>'phone', '');
+
   INSERT INTO public.profiles (id, name, email, phone, role)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', ''),
-    COALESCE(NEW.email, ''),
-    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    requested_role
-  );
+  VALUES (NEW.id, v_name, COALESCE(NEW.email, ''), v_phone, requested_role);
+
+  IF requested_role = 'vendor' THEN
+    INSERT INTO public.vendors (profile_id, store_name, description, momo_number, whatsapp_number, approval_status)
+    VALUES (
+      NEW.id,
+      CASE WHEN v_name = '' THEN 'My Store' ELSE v_name || '''s Store' END,
+      '', v_phone, v_phone, 'pending'
+    )
+    ON CONFLICT (profile_id) DO NOTHING;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

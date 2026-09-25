@@ -121,8 +121,20 @@ export async function getVendors({ search = '', status = '', page = 1, limit = 1
   let query = sb.from('vendors').select('*, profiles(id, name, email, phone, avatar_url, status)', { count: 'exact' });
 
   if (status) query = query.eq('approval_status', status);
-  if (search) query = query.or(`store_name.ilike.%${search}%,profiles.name.ilike.%${search}%,profiles.email.ilike.%${search}%`);
-  
+  if (search) {
+    const term = sanitizeSearchTerm(search);
+    if (term) {
+      // PostgREST cannot parse embedded columns (profiles.name) inside or= —
+      // resolve matching owner ids first, then OR them with store_name.
+      const { data: owners } = await sb.from('profiles')
+        .select('id').or(`name.ilike.%${term}%,email.ilike.%${term}%`).limit(500);
+      const ids = (owners || []).map(p => p.id);
+      const parts = [`store_name.ilike.%${term}%`];
+      if (ids.length) parts.push(`profile_id.in.(${ids.join(',')})`);
+      query = query.or(parts.join(','));
+    }
+  }
+
   const from = (page - 1) * limit;
   query = query.order('created_at', { ascending: false }).range(from, from + limit - 1);
 
@@ -188,7 +200,7 @@ export async function getBuyers({ search = '', page = 1, limit = 10 } = {}) {
   const sb = getSupabase();
   let query = sb.from('profiles').select('*', { count: 'exact' }).eq('role', 'buyer');
 
-  if (search) query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+  if (search) query = query.or(`name.ilike.%${sanitizeSearchTerm(search)}%,email.ilike.%${sanitizeSearchTerm(search)}%`);
 
   const from = (page - 1) * limit;
   query = query.order('created_at', { ascending: false }).range(from, from + limit - 1);
@@ -229,7 +241,7 @@ export async function getProducts({ search = '', status = '', category = '', pag
 
   if (status) query = query.eq('approval_status', status);
   if (category) query = query.eq('category_id', category);
-  if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+  if (search) query = query.or(`title.ilike.%${sanitizeSearchTerm(search)}%,description.ilike.%${sanitizeSearchTerm(search)}%`);
 
   switch (sort) {
     case 'price_asc': query = query.order('price', { ascending: true }); break;
@@ -299,7 +311,9 @@ export async function getOrders({ status = '', search = '', page = 1, limit = 10
   `, { count: 'exact' });
 
   if (status) query = query.eq('status', status);
-  if (search) query = query.or(`id.ilike.%${search}%`);
+  // id is UUID — ilike on it errors, and a partial/garbage id must not 400
+  const term = search.trim();
+  if (term && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(term)) query = query.eq('id', term);
 
   const from = (page - 1) * limit;
   query = query.order('created_at', { ascending: false }).range(from, from + limit - 1);
@@ -464,6 +478,12 @@ export function subscribeToChanges(tables, callback) {
 // ============================================
 // Helpers
 // ============================================
+// PostgREST filter strings treat , ( ) as syntax — strip them from search
+// input so a query can never break out of its intended filter.
+function sanitizeSearchTerm(q) {
+  return String(q || '').replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
 function buildRangeFilter(range) {
   const now = new Date();
   switch (range) {
