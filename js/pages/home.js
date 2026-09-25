@@ -159,7 +159,7 @@ async function renderHomePage() {
             <h4>Need Help?</h4>
             <p>Chat live with our Ridge-Accra Desk</p>
           </div>
-          <a href="https://wa.me/233551234567" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Chat 💬</a>
+          <a href="https://wa.me/233206588697" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Chat 💬</a>
         </div>
       </div>
     </div>

@@ -68,7 +68,7 @@ function renderFooter() {
           <a href="#/privacy" style="color:var(--text-muted)">Privacy Policy</a>
           <a href="#/terms" style="color:var(--text-muted)">Terms of Service</a>
           <a href="#/terms" style="color:var(--text-muted)">MoMo Escrow Terms</a>
-          <a href="https://wa.me/233551234567" target="_blank" rel="noopener" style="color:var(--text-muted)">WhatsApp Support</a>
+          <a href="https://wa.me/233206588697" target="_blank" rel="noopener" style="color:var(--text-muted)">WhatsApp Support</a>
         </div>
       </div>
     </footer>

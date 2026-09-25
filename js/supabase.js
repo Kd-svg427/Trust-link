@@ -350,16 +350,17 @@ const Reviews = {
 
 const Newsletter = {
   async subscribe(email) {
-    const { data, error } = await sb
+    // No .select() here on purpose: anon has no SELECT policy on this table
+    // (granting one would expose every subscriber's email), and a RETURNING
+    // clause would need it. The insert itself + 23505 duplicate check is enough.
+    const { error } = await sb
       .from('newsletter_subscribers')
-      .insert({ email })
-      .select()
-      .single();
+      .insert({ email });
     if (error) {
       if (error.code === '23505') throw new Error('This email is already subscribed!');
       throw error;
     }
-    return data;
+    return true;
   }
 };
 
