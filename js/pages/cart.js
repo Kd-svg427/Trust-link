@@ -73,7 +73,7 @@ async function initCartPage() {
           <a href="#/checkout" class="edit-link">Edit</a>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start">
+        <div class="cart-layout">
           <!-- Left Column: Cart Items -->
           <div>
             ${cartProducts.map(item => renderCartItem(item)).join('')}

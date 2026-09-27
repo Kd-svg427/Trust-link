@@ -2008,6 +2008,19 @@ body.admin-mode #tl-admin {
 }
 
 /* Order summary in cart */
+.cart-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 769px) {
+  .cart-layout {
+    grid-template-columns: 1fr 380px;
+  }
+}
+
 .order-summary {
   padding: 1.25rem;
   background: var(--bg-card);
