@@ -269,6 +269,11 @@ function updateActiveNavLink(route) {
   const navEl = document.getElementById('navbar-nav');
   if (navEl) navEl.classList.remove('open');
 
+  // Storefront strip (location + search + payment pills) is shopping chrome —
+  // hide it inside the vendor workspace
+  const mobileExtra = document.getElementById('mobile-header-extra');
+  if (mobileExtra) mobileExtra.style.display = route.startsWith('/vendor') ? 'none' : '';
+
   // Top nav
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.remove('active');
